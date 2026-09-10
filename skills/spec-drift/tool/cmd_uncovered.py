@@ -21,20 +21,20 @@ import symbols as S
 
 
 def _anchor_derived_files(ctx) -> set[str]:
-    """Derive the hot-zone files from the current ledger anchors, excluding files under tests/."""
+    """Derive the hot-zone files from the current ledger anchors, excluding files under any `tests` directory."""
     entries = L.parse_ledger(ctx.ledger_path.read_text(encoding="utf-8"), ctx.labels)
     files: set[str] = set()
     for entry in entries.values():
         for anchor in entry.anchors:
             relpath, _name = repo.split_anchor(anchor)
-            if relpath.startswith("tests/"):
+            if repo.is_test_path(relpath):
                 continue
             files.add(relpath)
     return files
 
 
 def _configured_hot_zone_files(ctx) -> set[str]:
-    """Resolve the optional hot_zone field of .spec-drift.json into a set of relative file paths (tests/ already excluded).
+    """Resolve the optional hot_zone field of .spec-drift.json into a set of relative file paths (any `tests` directory already excluded).
 
     Every item is relative to one code_root (with a multi-value code_root each item is
     looked up under all of them to find its owner):
@@ -72,15 +72,15 @@ def _configured_hot_zone_files(ctx) -> set[str]:
             if target.suffix != ".py":
                 print(f"⚠ hot_zone entry is not a .py file, skipped: {entry}")
                 continue
-            files.add(str(target.relative_to(root)))
+            files.add(target.relative_to(root).as_posix())
         else:
             for path in target.rglob("*.py"):
-                files.add(str(path.relative_to(root)))
-    return {f for f in files if not f.startswith("tests/")}
+                files.add(path.relative_to(root).as_posix())
+    return {f for f in files if not repo.is_test_path(f)}
 
 
 def hot_zone(ctx) -> list[str]:
-    """The hot-zone file list: anchor-derived ∪ configured (the latter optional), tests/ excluded.
+    """The hot-zone file list: anchor-derived ∪ configured (the latter optional), any `tests` directory excluded.
 
     With no hot_zone field in `.spec-drift.json` this is the same as deriving from the
     anchors alone — byte-for-byte what it was before the hot zone became configurable.
@@ -97,9 +97,9 @@ def run(ctx) -> int:
     anchored = {a for e in entries.values() for a in e.anchors}
 
     if show_origin:
-        print("Hot zone (derived from the ledger anchors, plus the hot_zone field of .spec-drift.json, tests/ excluded):")
+        print("Hot zone (derived from the ledger anchors, plus the hot_zone field of .spec-drift.json; any `tests/` directory excluded):")
     else:
-        print("Hot zone (derived from the ledger anchors, tests/ excluded):")
+        print("Hot zone (derived from the ledger anchors; any `tests/` directory excluded):")
 
     total = 0
     for relpath in sorted(anchor_files | configured_files):
@@ -125,5 +125,7 @@ def run(ctx) -> int:
         for row in sorted(rows):
             print(f"    - {row}")
     print(f"\n{total} symbols are not anchored by any entry.")
-    print('Each must be classified as "entry added" or "not covered on purpose (state the cost)".')
+    print('Each must be given one of three verdicts: "anchor added" (an entry now anchors it), '
+          '"knowingly not anchored (state the price)" (it carries a rule and is left out on purpose), '
+          'or "no business meaning" (changing it changes no state transition and nothing shown outside).')
     return 0

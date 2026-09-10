@@ -37,9 +37,11 @@ Every value above is an **example** — replace them with your own project's rea
 Written as a plain string rather than a list, the behaviour is exactly what it is with a single code root. Written as a list, two structural constraints apply, and violating either is an error raised while the config is being loaded (you do not find out halfway through some command):
 
 - No two items may be equal, nor may one be an ancestor directory of the other (`["backend", "backend/sub"]` is illegal) — otherwise the same physical file falls under two directory prefixes and cannot be assigned an unambiguous owner.
-- No two `code_root`s may hold **`.py` files that really exist** sharing one relative path (both holding `pkg/mod.py`, say) — otherwise the symbol name `relpath::name` has no unambiguous owner. Anchors, the full scan of `impact` and the actual change set of `changed` all depend on this uniqueness.
+- No two `code_root`s may hold **`.py` files that really exist** sharing one relative path (both holding `pkg/mod.py`, say) — otherwise the symbol name `relpath::name` has no unambiguous owner. Anchors, the full scan of `impact` and the actual change set of `changed` all depend on this uniqueness. Two kinds of file are left out of this comparison because they sit outside the business view: anything under a `tests` directory (at any depth — every other command excludes those too) and `__init__.py` (any two Python package roots necessarily share it; a symbol living in a shared `__init__.py` still cannot be anchored, and resolving such an anchor fails loudly instead).
 
 These two checks only run when `code_root` is a list: with a single value there is zero cost and zero behaviour change.
+
+**Be honest with yourself before reaching for a list.** A multi-value `code_root` only fits layouts whose relative paths do not overlap by construction — two services with different top-level package names, say. Two roots that both hold `app/models.py` or `pkg/settings.py` will be refused, and the fix is to restructure or to pick one parent directory as a single `code_root` (nested `tests` directories are excluded at any depth, so one root over several services is a fine choice). Reading `reference/adopting-an-existing-project.md` § Choosing `code_root` first saves the round trip.
 
 ### `hot_zone` (optional): adding your own range to the hot zone
 
@@ -50,7 +52,7 @@ The hot zone of `uncovered` is derived **only** from the files the ledger anchor
 ```
 
 - Field absent: `uncovered` behaves exactly as it does without the field at all (derived purely from anchors). This is the default.
-- Field present: hot zone = the anchor-derived files **∪** the files and directories listed here, with anything under `tests/` excluded from both sources; the output of `uncovered` labels each hot-zone file with where it came from (`anchor-derived` / `configured` / both).
+- Field present: hot zone = the anchor-derived files **∪** the files and directories listed here, with anything under a `tests` directory (at any depth) excluded from both sources; the output of `uncovered` labels each hot-zone file with where it came from (`anchor-derived` / `configured` / both).
 - An item found under **no** `code_root`: a warning is printed and the item skipped; the command is not aborted.
 - An item found under **several** `code_root`s (only possible with a multi-value `code_root`): its owner cannot be determined, so this fails loudly — it does not silently pick one.
 
@@ -87,14 +89,16 @@ The four section labels of a ledger entry (the format is in `reference/ledger-fo
 | Command | Legal state | Behaviour | Exit code |
 |---|---|---|---|
 | `check` | any | judges every entry's state and compares fingerprints, see "Exit-code semantics of `check`" below | see below |
-| `uncovered` | — | reports the symbols in the hot-zone files (derived from the ledger anchors, optionally unioned with the `hot_zone` field of `.spec-drift.json`, `tests/` excluded) that no entry anchors | usually 0; 1 when a `hot_zone` item exists under several `code_root`s (its owner cannot be determined) |
+| `uncovered` | — | reports the symbols in the hot-zone files (derived from the ledger anchors, optionally unioned with the `hot_zone` field of `.spec-drift.json`; any `tests` directory excluded) that no entry anchors | usually 0; 1 when a `hot_zone` item exists under several `code_root`s (its owner cannot be determined) |
 | `impact <symbol\|entry ID>` | — | reports "who references this symbol" plus "the sibling anchors under the same entry"; given an entry ID it reports once per anchor of that entry | always 0 |
-| `inventory [--symbol <file.py::name>\|--file <path relative to code_root>]` | — | enumerates the eight categories of AST element inside a symbol and prints a markdown table skeleton with the "verdict" and "reason" columns left blank, for building a ledger over existing code; with no argument it takes stock of every anchor currently in the ledger (`tests/` excluded) | always 0 |
+| `inventory [--symbol <file.py::name>\|--file <path relative to code_root>]` | — | enumerates the eight categories of AST element inside a symbol and prints a markdown table skeleton with the "verdict" and "reason" columns left blank, for building a ledger over existing code; with no argument it takes stock of every anchor currently in the ledger (any `tests` directory excluded) | always 0 |
 | `sync <ID> --by <owner> --note <reason>` | S1 | generates `assertion_sha` and every anchor fingerprint, writes them to the lock, syncs the "last confirmed" date in the markdown | 0; 1 when the state or `--by` does not match |
 | `confirm <ID> --by <owner\|assistant> --note <reason>` | S4 | refreshes the fingerprints and the confirmation metadata in the lock, syncs the date in the markdown | 0; 1 when it does not match |
 | `relink <ID> --by <owner> --note <reason>` | S3 | rebuilds the lock record from the anchors currently in the markdown (recomputing every fingerprint), syncs the date in the markdown | 0; 1 when it does not match |
 | `relink <ID> --delete --by <owner> --note <reason>` | S2 | deletes that lock entry; does **not** sync the date in the markdown | 0; 1 when it does not match |
 | `changed --predict <path to the prediction file, relative to the repository root>` | — | computes the set of symbols this cycle actually changed; `base` is discovered automatically | 1 on a self-check or parse failure, otherwise 0 |
+
+**Exit code 2, for every command**: the tool could not even start — `.spec-drift.json` missing (no such file walking up to the git boundary), malformed, or missing a required field; a multi-value `code_root` that overlaps or is ambiguous; a ledger file that does not exist or does not parse. These are configuration errors, so they are reported as one `❌ …` line on **stderr** and never as a Python traceback; the message names the offending file or field. Read `2` as "fix the config, then run again", as distinct from `1`, which is a real finding (drift, a failed self-check, a refused state transition).
 
 ### Exit-code semantics of `check`
 
@@ -121,11 +125,18 @@ The eight categories of element (the criteria are fixed, nothing may be added or
 
 A class anchor covers the **class body level** only and does not descend into method bodies — method bodies are enumerated separately as `Class::method`, so that class and method together do not count the same code twice; when taking stock of a class symbol the output additionally lists its method names, as a prompt to take stock of those separately.
 
-The three argument shapes are mutually exclusive: with no argument it takes stock of every production anchor currently in the ledger (`tests/` excluded), which is what you use to check completeness after building the ledger; `--symbol` takes stock of one symbol only; `--file` takes stock of every top-level symbol plus class methods in that file, which is what you use when building a ledger from **empty** (there are no anchors to derive anything from yet). The output always ends with "how to fill in the verdict" (three verdicts: asserted by some entry / belongs to another book, no entry / no business meaning) and "known limits" — the latter states honestly what this enumeration structurally cannot see (same-module calls, comparisons inside call arguments, absent semantics of the "deliberately does not do X" kind) rather than boasting about completeness.
+The three argument shapes are mutually exclusive: with no argument it takes stock of every production anchor currently in the ledger (any `tests` directory excluded), which is what you use to check completeness after building the ledger; `--symbol` takes stock of one symbol only; `--file` takes stock of every top-level symbol plus class methods in that file, which is what you use when building a ledger from **empty** (there are no anchors to derive anything from yet). The output always ends with "how to fill in the verdict" (three verdicts: asserted by some entry / belongs to another book, no entry / no business meaning) and "known limits" — the latter states honestly what this enumeration structurally cannot see (same-module calls, comparisons inside call arguments, absent semantics of the "deliberately does not do X" kind) rather than boasting about completeness.
 
 ### The self-checks and validations of `changed`
 
 `changed` is the single source of "which symbols this round of work actually changed". `--predict` is required and takes the path of the prediction file relative to the repository root (where that file lives is up to each project's own document conventions; this tool hard-codes no directory name); `base` is identified mechanically from the earliest commit in git history that added that file and never has to be typed.
+
+Before the self-checks run, `changed` prints the two facts the whole reconciliation stands on, so they are never invisible — and they are printed even when a self-check then fails:
+
+```
+base: <sha> (the commit that added <prediction file>)
+mainline: origin/<name> @ <sha>
+```
 
 **Five self-checks (any one unmet is an error and exits):**
 

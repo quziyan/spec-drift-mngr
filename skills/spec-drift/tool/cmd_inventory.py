@@ -314,13 +314,13 @@ def _inventory_one(ctx, relpath: str, name: str) -> tuple[list[str], dict[str, i
 
 
 def _ledger_anchors(ctx) -> list[str]:
-    """Every production symbol the ledger currently anchors (those under tests/ excluded), deduplicated and sorted by anchor string."""
+    """Every production symbol the ledger currently anchors (those under any `tests` directory excluded), deduplicated and sorted by anchor string."""
     entries = L.parse_ledger(ctx.ledger_path.read_text(encoding="utf-8"), ctx.labels)
     anchors: set[str] = set()
     for entry in entries.values():
         for anchor in entry.anchors:
             relpath, _name = repo.split_anchor(anchor)
-            if relpath.startswith("tests/"):
+            if repo.is_test_path(relpath):
                 continue
             anchors.add(anchor)
     return sorted(anchors)

@@ -50,8 +50,26 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+CONFIG_ERROR_EXIT = 2
+
+
 def main(argv: list[str] | None = None) -> int:
+    """Exit codes: each command's own (0/1, see README); 2 when the tool could not even
+    start — a missing or malformed `.spec-drift.json`, an ambiguous multi-value code_root,
+    a ledger file that does not exist or does not parse. Those are the user's
+    configuration errors, so they are reported as one `❌` line on stderr, never as a
+    traceback (a traceback reads as "the tool crashed", and hides the fix the message
+    already names).
+    """
     args = build_parser().parse_args(argv)
+    try:
+        return _dispatch(args)
+    except (ValueError, RuntimeError, FileNotFoundError) as exc:
+        print(f"❌ {exc}", file=sys.stderr)
+        return CONFIG_ERROR_EXIT
+
+
+def _dispatch(args) -> int:
     ctx = repo.build_ctx()
     if args.command == "check":
         return cmd_check.run(ctx)

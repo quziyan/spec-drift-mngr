@@ -263,3 +263,29 @@ class TestRunMergeWarning(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestRunPrintsBaseAndMainline(unittest.TestCase):
+    """The reconciliation stands on "base was chosen correctly"; that must be visible."""
+
+    def test_base_and_mainline_lines_precede_the_actual_set(self):
+        with tempfile.TemporaryDirectory() as d:
+            repo = make_repo(Path(d), mainline="main")
+            base = commit_predict_file(repo)
+            _mod(repo, "def f():\n    return 1\n")
+            code, out = _run_changed(repo)
+            self.assertEqual(code, 0, out)
+            self.assertIn(f"base: {base}", out)
+            self.assertIn("mainline: origin/main @ ", out)
+            self.assertLess(out.index("base: "), out.index("Actual changed symbol set"))
+
+    def test_base_line_printed_even_when_a_self_check_fails(self):
+        with tempfile.TemporaryDirectory() as d:
+            repo = make_repo(Path(d), mainline="main")
+            base = commit_predict_file(repo)
+            _mod(repo, "def f():\n    return 1\n")
+            (repo / CODE_ROOT_REL / "dirty.py").write_text("x = 1\n", encoding="utf-8")
+            code, out = _run_changed(repo)
+            self.assertEqual(code, 1)
+            self.assertIn(f"base: {base}", out)
+            self.assertIn("self-check 1", out)

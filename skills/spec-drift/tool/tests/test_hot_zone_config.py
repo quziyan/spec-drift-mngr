@@ -137,7 +137,7 @@ class TestOriginLabelingOnlyWhenConfigured(unittest.TestCase):
             fx = Fixture(Path(d), md=MD, code=CODE)
             code, out = run_uncovered(fx.ctx)
             self.assertEqual(code, 0)
-            self.assertIn("Hot zone (derived from the ledger anchors, tests/ excluded):", out)
+            self.assertIn("Hot zone (derived from the ledger anchors; any `tests/` directory excluded):", out)
             self.assertNotIn("(origin: ", out)
 
     def test_configured_hot_zone_prints_origin_label_for_every_file(self):

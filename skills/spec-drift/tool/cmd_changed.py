@@ -162,6 +162,12 @@ def run(ctx, predict_relpath: str) -> int:
         base, find_warnings = gitutil.find_base(repo_root, predict_relpath)
         for w in find_warnings:
             print(w)
+        # The whole reconciliation stands on "base was chosen correctly" and "the mainline
+        # is the right branch"; both were the only invisible links in the chain, so they
+        # are printed before the self-checks (a failing self-check then still shows them).
+        mainline_sha = gitutil.git(repo_root, "rev-parse", m.full_ref).strip()
+        print(f"base: {base} (the commit that added {predict_relpath})")
+        print(f"mainline: origin/{m.name} @ {mainline_sha}")
         gitutil.run_self_checks(repo_root, base, code_roots_rel, m)
         for w in gitutil.validate_base(repo_root, base, code_roots_rel, m):
             print(w)

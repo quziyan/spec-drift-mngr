@@ -34,6 +34,21 @@ class Ctx(NamedTuple):
         return self.code_root if isinstance(self.code_root, tuple) else (self.code_root,)
 
 
+TEST_DIR_NAME = "tests"
+
+
+def is_test_path(relpath: str) -> bool:
+    """True when any directory segment of relpath (relative to a code_root) is named `tests`.
+
+    This is the one definition of "a test file" the tool has. It is a path-segment match at
+    any depth, not a prefix match on the code_root: a code_root that holds several
+    services (`svc/tests/...`) is the common layout of a real project, and a prefix match
+    silently kept every nested test directory in the business view.
+    """
+    parts = relpath.replace("\\", "/").split("/")
+    return TEST_DIR_NAME in parts[:-1]
+
+
 def find_repo_root(start: Path | None = None) -> Path:
     """Walk up from start (cwd by default) looking for .spec-drift.json; that level is the repository root.
 
@@ -74,6 +89,13 @@ def _validate_multi_code_roots(raw_values: list[str], roots: list[Path]) -> None
     otherwise the symbol name `relpath::name` has no unique owner (anchor resolution,
     the full scan performed by `impact`, and the symbol naming used by `changed` all
     depend on that path being unique).
+
+    Two kinds of file are left out of check (2), because they are outside the business
+    view and would otherwise veto every real multi-package project:
+    - files under a `tests` directory at any depth (every other command excludes them);
+    - `__init__.py` — any two Python package roots necessarily share it. A symbol that
+      lives in an `__init__.py` shared by two roots still cannot be anchored: resolving
+      such an anchor raises loudly in `_resolve_relpath` (the second line of defence).
     """
     resolved = [r.resolve() for r in roots]
     for i, a in enumerate(resolved):
@@ -92,7 +114,9 @@ def _validate_multi_code_roots(raw_values: list[str], roots: list[Path]) -> None
         if not root.exists():
             continue
         for path in root.rglob("*.py"):
-            rel = str(path.relative_to(root))
+            rel = path.relative_to(root).as_posix()
+            if path.name == "__init__.py" or is_test_path(rel):
+                continue
             owner = seen.get(rel)
             if owner is not None and owner != root:
                 raise ValueError(

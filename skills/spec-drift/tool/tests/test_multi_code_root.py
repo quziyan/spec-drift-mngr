@@ -210,3 +210,41 @@ class TestUncoveredAcrossRoots(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestUniquenessSkipsExcludedFiles(unittest.TestCase):
+    """Files outside the business view must not veto the config.
+
+    `tests/` directories are excluded from every other command, and every Python
+    package root carries an `__init__.py`, so neither may count as a relative-path
+    collision between two code roots — otherwise no real multi-package project could
+    ever configure a multi-value code_root.
+    """
+
+    def _two_roots(self, tmp: Path) -> None:
+        for root in ("svc_a", "svc_b"):
+            (tmp / root / "pkg").mkdir(parents=True)
+            (tmp / root / "tests").mkdir(parents=True)
+            (tmp / root / "pkg" / "sub" / "tests").mkdir(parents=True)
+            (tmp / root / "__init__.py").write_text("", encoding="utf-8")
+            (tmp / root / "pkg" / "__init__.py").write_text("", encoding="utf-8")
+            (tmp / root / "tests" / "conftest.py").write_text("def db():\n    pass\n", encoding="utf-8")
+            (tmp / root / "pkg" / "sub" / "tests" / "test_x.py").write_text("def test_x():\n    pass\n", encoding="utf-8")
+        (tmp / "svc_a" / "pkg" / "mod_a.py").write_text("def f():\n    return 1\n", encoding="utf-8")
+        (tmp / "svc_b" / "pkg" / "mod_b.py").write_text("def g():\n    return 2\n", encoding="utf-8")
+
+    def test_shared_tests_dir_and_init_py_are_not_a_collision(self):
+        with tempfile.TemporaryDirectory() as d:
+            tmp = Path(d)
+            self._two_roots(tmp)
+            ctx = build_two_root_ctx(tmp, md=MD_TWO_ROOTS)
+            self.assertEqual(len(ctx.code_roots), 2)
+
+    def test_shared_production_module_is_still_rejected(self):
+        with tempfile.TemporaryDirectory() as d:
+            tmp = Path(d)
+            self._two_roots(tmp)
+            (tmp / "svc_b" / "pkg" / "mod_a.py").write_text("def f():\n    return 9\n", encoding="utf-8")
+            with self.assertRaises(ValueError) as cm:
+                build_two_root_ctx(tmp, md=MD_TWO_ROOTS)
+            self.assertIn("pkg/mod_a.py", str(cm.exception))

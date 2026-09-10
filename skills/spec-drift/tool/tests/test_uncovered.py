@@ -82,3 +82,63 @@ class TestUncovered(unittest.TestCase):
             with redirect_stdout(buf):
                 cmd_uncovered.run(fx.ctx)
             self.assertNotIn("<module>", buf.getvalue())
+
+
+class TestNestedTestsDirExcluded(unittest.TestCase):
+    """A `tests` directory is excluded at any depth, not only directly under code_root.
+
+    A code_root that holds several services (`svc/tests/...`) is the common layout of
+    a real project; before this the prefix match only caught `tests/` at the top and
+    the banner still claimed the exclusion had happened.
+    """
+
+    MD_NESTED = """# Pilot ledger
+
+### R-T-001 Example rule
+
+**Current rule**
+f always returns 1.
+
+**Boundary**
+Nothing else is in scope.
+
+**Anchors**
+- `svc/mod.py::f`
+- `svc/tests/test_mod.py::test_f`
+
+**Last confirmed**
+2026-09-04
+"""
+
+    def _build(self, tmp: Path) -> Fixture:
+        fx = Fixture(tmp, md=self.MD_NESTED, code=CODE)
+        (tmp / "backend" / "svc" / "tests").mkdir(parents=True)
+        (tmp / "backend" / "svc" / "mod.py").write_text(CODE, encoding="utf-8")
+        (tmp / "backend" / "svc" / "tests" / "test_mod.py").write_text(
+            "def test_f():\n    pass\n\n\ndef test_other():\n    pass\n", encoding="utf-8"
+        )
+        (tmp / "backend" / "svc" / "tests" / "conftest.py").write_text(
+            "def db():\n    pass\n", encoding="utf-8"
+        )
+        return fx
+
+    def test_anchor_derived_nested_tests_excluded(self):
+        with tempfile.TemporaryDirectory() as d:
+            fx = self._build(Path(d))
+            self.assertEqual(cmd_uncovered.hot_zone(fx.ctx), ["svc/mod.py"])
+
+    def test_configured_hot_zone_dir_drops_nested_tests(self):
+        with tempfile.TemporaryDirectory() as d:
+            tmp = Path(d)
+            fx = self._build(tmp)
+            cfg = tmp / ".spec-drift.json"
+            cfg.write_text(cfg.read_text(encoding="utf-8").replace(
+                '"owner"', '"hot_zone": ["svc"], "owner"'), encoding="utf-8")
+            self.assertEqual(cmd_uncovered.hot_zone(fx.ctx), ["svc/mod.py"])
+            buf = io.StringIO()
+            with redirect_stdout(buf):
+                cmd_uncovered.run(fx.ctx)
+            out = buf.getvalue()
+            self.assertNotIn("conftest", out)
+            self.assertNotIn("test_other", out)
+            self.assertIn("any `tests/` directory excluded", out)

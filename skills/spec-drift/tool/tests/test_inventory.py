@@ -311,3 +311,16 @@ class TestCliWiring(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestLedgerAnchorsSkipNestedTests(unittest.TestCase):
+    def test_nested_tests_anchor_is_not_inventoried(self):
+        md = MD.replace("- `tests/test_mod.py::test_f`", "- `pkg/tests/test_mod.py::test_f`")
+        with tempfile.TemporaryDirectory() as d:
+            tmp = Path(d)
+            fx = Fixture(tmp, md=md, code=CODE)
+            (tmp / "backend" / "pkg" / "tests").mkdir(parents=True, exist_ok=True)
+            (tmp / "backend" / "pkg" / "tests" / "test_mod.py").write_text(
+                "def test_f():\n    pass\n", encoding="utf-8"
+            )
+            self.assertEqual(cmd_inventory._ledger_anchors(fx.ctx), ["pkg/mod.py::f"])
