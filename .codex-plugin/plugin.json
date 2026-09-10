@@ -1,0 +1,27 @@
+{
+  "name": "spec-drift-mngr",
+  "version": "1.0.1",
+  "description": "Drift control between a project's business-rule ledger and its code: a reconciliation gate before work starts and a wrap-up gate before a branch is finished.",
+  "author": {
+    "name": "quziyan"
+  },
+  "homepage": "https://github.com/quziyan/spec-drift-mngr",
+  "repository": "https://github.com/quziyan/spec-drift-mngr",
+  "license": "MIT",
+  "keywords": [
+    "spec",
+    "drift",
+    "business-rules",
+    "ledger",
+    "skill"
+  ],
+  "skills": "./skills/",
+  "hooks": {},
+  "interface": {
+    "displayName": "Spec Drift Manager",
+    "shortDescription": "Keeps a project's business-rule ledger pinned to its code with a pre-work reconciliation gate and a pre-merge wrap-up gate.",
+    "longDescription": "Spec Drift Manager ships one skill, spec-drift, that keeps a project's business-rule ledger -- a set of falsifiable assertions anchored to code symbols -- from drifting away from the code it describes. Gate 1 runs a reconciliation before work on a requirement starts: read the ledger, predict what will change, and get the owner's nod. Gate 2 runs a wrap-up ritual before a branch merges: reconcile what actually changed against the prediction, and update the ledger in the same batch as the code. The mechanism does not guarantee the ledger is always right -- it guarantees that once the ledger and the code come apart, the alarm goes off at the wrap-up of the next change.",
+    "developerName": "quziyan",
+    "category": "Developer Tools"
+  }
+}
