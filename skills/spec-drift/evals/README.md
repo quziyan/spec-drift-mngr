@@ -146,9 +146,10 @@ delivery instead of 14 — run Gate 1, do not implement"), skill linked at `~/.a
 | Runtime | Model | Found the tool via `<skill-dir>` | Commands run | Gate 1 discipline |
 |---|---|---|---|---|
 | Codex CLI 0.153 (`codex exec`) | the runtime's default | yes — `python3 "~/.agents/skills/spec-drift/tool"` | `check`, `uncovered`, `impact R-REF-001` | full: prediction-only commit made, prerequisite list with `file::symbol` evidence, two "not covered" rows stated explicitly, no code/ledger/lock touched |
+| OpenCode (`opencode run`) | `alibaba-cn/qwen3.8-max` | yes — `python3 "~/.agents/skills/spec-drift/tool"` | `check`, `uncovered`, `impact R-REF-001`, `impact order.py::REFUND_WINDOW_DAYS` | full: prediction-only commit made (`changes/` file), premise list with verbatim assertions, `file::symbol` evidence and a changed-this-round column, one "not covered" row stated explicitly, P2 justified by `impact` output, no code/ledger/lock touched |
 | OpenCode (`opencode run`) | `alibaba-cn/qwen3-235b-a22b` | yes — `python3 ~/.agents/skills/spec-drift/tool/__main__.py` | `check`, `uncovered`, `impact order.py::REFUND_WINDOW_DAYS` | partial: loaded SKILL.md via the `skill` tool and ran the right commands, but wrote no prediction file, made no prediction-only commit, and the prerequisite list carried no evidence column |
 
 What this does and does not show: path resolution and tool invocation are runtime-independent
-(the compatibility question); Gate 1 *discipline* is model-dependent — the OpenCode run used a
-mid-size open model and followed the mechanics but not the evidence rules. Re-run with a stronger
-model before drawing conclusions about OpenCode itself. Neither run is a RED/GREEN pair.
+(the compatibility question). Gate 1 *discipline* is model-dependent, not runtime-dependent: on the
+same OpenCode setup, `qwen3.8-max` followed the skill fully while `qwen3-235b-a22b` followed the
+mechanics but not the evidence rules. None of these runs is a RED/GREEN pair.
