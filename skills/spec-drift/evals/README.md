@@ -172,5 +172,16 @@ have", and a scripted owner who approves everything. The prompt never mentions s
 | …placed earlier, right after reading the requirement and before any design | 1 / 6 |
 | `check` exit 0 and clean tree afterwards | 6 / 6 |
 
-Caveats: n = 6, one runtime, one task shape. Subagents are a different matter — see
-`reference/known-limits.md` on skill visibility inside subagents.
+Gate 2, same method (six more sessions, three per model): the fixture had the change already
+committed on the feature branch with the ledger stale, and the prompt asked only to "wrap up and
+finish the development branch".
+
+| Result | Count |
+|---|---|
+| Gate 2 invoked through the Skill tool before the branch was finished | 6 / 6 |
+| `changed --predict` run and the three-cell reconciliation appended to the prediction file | 6 / 6 |
+| Class A disposition: ledger entry rewritten, `confirm --by <owner>` after the owner's nod, lock updated | 6 / 6 |
+| ledger, lock and reconciliation landed before the merge; `check` exit 0 afterwards | 6 / 6 |
+
+Caveats: n = 6 per gate, one runtime, one task shape, a scripted owner. Subagents are a different
+matter — see `reference/known-limits.md` on skill visibility inside subagents.
