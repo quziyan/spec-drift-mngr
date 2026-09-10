@@ -5,7 +5,7 @@ description: "Drift control between the business-rule ledger and the code: a pre
 
 # Spec drift control · two gates
 
-`<skill-dir>` in this file and in `reference/` means the directory that contains this SKILL.md; on this installation that is `${CLAUDE_SKILL_DIR}`.
+`<skill-dir>` in this file and in `reference/` means the directory that contains this SKILL.md. On Claude Code that directory is `${CLAUDE_SKILL_DIR}`; on other runtimes (Codex, OpenCode) use the path you loaded this file from.
 
 ## 0. Kill switch and adoption check (the first thing on every entry into this skill)
 
@@ -33,13 +33,13 @@ No `.spec-drift.json` at the repository root means **this repository has not ado
 
 Most repositories accumulate a pile of unmaintained documents describing the business rules as they stood at some moment in the past. Assistants (and people) keep reading an old document, mistake it for the rule in force today, and work from a rule that has been superseded — which takes a human watching the whole way to correct.
 
-A project that adopts this mechanism has **one ledger of the business rules that are true right now** (a set of falsifiable assertions, each anchored to a specific code symbol). The spec-drift tool (`${CLAUDE_SKILL_DIR}/tool/`) pins the ledger to the code with symbol fingerprints; the paths — the ledger, the lock file, the code root being verified — all come from `.spec-drift.json` at the repository root, and the body of this skill hard-codes no project's paths.
+A project that adopts this mechanism has **one ledger of the business rules that are true right now** (a set of falsifiable assertions, each anchored to a specific code symbol). The spec-drift tool (`<skill-dir>/tool/`) pins the ledger to the code with symbol fingerprints; the paths — the ledger, the lock file, the code root being verified — all come from `.spec-drift.json` at the repository root, and the body of this skill hard-codes no project's paths.
 
 The ledger markdown is the sole authority for the anchors and the assertions; the lock file is its machine projection (symbol fingerprints and confirmation records) and is never edited by hand — only `sync` / `confirm` / `relink` write it.
 
 **This mechanism does not guarantee the ledger is always right. It guarantees that once the ledger and the code come apart, the alarm goes off at the wrap-up of the next change.**
 
-Command usage is in `${CLAUDE_SKILL_DIR}/tool/README.md`; the design motivation and reasoning particular to a project are in that project's own design documents.
+Command usage is in `<skill-dir>/tool/README.md`; the design motivation and reasoning particular to a project are in that project's own design documents.
 
 ---
 
@@ -73,7 +73,7 @@ For every new requirement, **compulsorily inserted between finishing reading the
 
 ### The five actions
 
-1. Run `python3 "${CLAUDE_SKILL_DIR}/tool" check`. An unclean ledger means the previous round's wrap-up was never finished — **finish it before starting work**.
+1. Run `python3 "<skill-dir>/tool" check`. An unclean ledger means the previous round's wrap-up was never finished — **finish it before starting work**.
 2. Identify from the requirement which ledger entries are involved; **run `uncovered` while you are at it**.
 3. Entry by entry, **open the anchor symbols and read the current source**. **Do not consult memory, only the code just read.**
 4. Run `impact` and produce the **prediction set**. Write the prediction file where the project keeps its change documents, commit it alone (predictions only, no implementation), and pass its path to `changed --predict` later. That commit is the base-ref.
