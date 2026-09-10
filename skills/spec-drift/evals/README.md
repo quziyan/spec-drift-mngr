@@ -135,3 +135,20 @@ GREEN measures the pasted text and not the installed copy.
 out of RED's reach, since it lives beside the skill and not inside the fixture. Any check that asks
 whether a reference file was read is therefore unpassable in RED by construction — scenario 5's C3
 is one, and its RED verdict says so.
+
+## Other runtimes (smoke runs, 2026-09-10)
+
+The five scenarios above were run on Claude Code only. Two one-shot smoke runs checked that the
+skill text and its bundled tool work unchanged on other runtimes — same fixture
+(`build-minimal-repo.sh --main-branch main`), same task ("refunds are allowed for 21 days after
+delivery instead of 14 — run Gate 1, do not implement"), skill linked at `~/.agents/skills/spec-drift`.
+
+| Runtime | Model | Found the tool via `<skill-dir>` | Commands run | Gate 1 discipline |
+|---|---|---|---|---|
+| Codex CLI 0.153 (`codex exec`) | the runtime's default | yes — `python3 "~/.agents/skills/spec-drift/tool"` | `check`, `uncovered`, `impact R-REF-001` | full: prediction-only commit made, prerequisite list with `file::symbol` evidence, two "not covered" rows stated explicitly, no code/ledger/lock touched |
+| OpenCode (`opencode run`) | `alibaba-cn/qwen3-235b-a22b` | yes — `python3 ~/.agents/skills/spec-drift/tool/__main__.py` | `check`, `uncovered`, `impact order.py::REFUND_WINDOW_DAYS` | partial: loaded SKILL.md via the `skill` tool and ran the right commands, but wrote no prediction file, made no prediction-only commit, and the prerequisite list carried no evidence column |
+
+What this does and does not show: path resolution and tool invocation are runtime-independent
+(the compatibility question); Gate 1 *discipline* is model-dependent — the OpenCode run used a
+mid-size open model and followed the mechanics but not the evidence rules. Re-run with a stronger
+model before drawing conclusions about OpenCode itself. Neither run is a RED/GREEN pair.

@@ -59,8 +59,10 @@ plugin-based installs on runtimes that support that install path.
 
 ### OpenCode
 
-OpenCode discovers skills under `~/.config/opencode/skills/`. Using the same clone
-as above:
+OpenCode also scans `~/.agents/skills/`, so the Codex symlink above is enough for
+both runtimes — do not add a second copy under `~/.config/opencode/skills/`, or
+OpenCode logs `duplicate skill name` and picks one of the two. If you use OpenCode
+without Codex, link there instead:
 
 ```bash
 ln -s ~/.agents/spec-drift-mngr/skills/spec-drift ~/.config/opencode/skills/spec-drift
