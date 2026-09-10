@@ -1,0 +1,12 @@
+{
+  "name": "spec-drift-mngr",
+  "owner": { "name": "quziyan" },
+  "plugins": [
+    {
+      "name": "spec-drift-mngr",
+      "source": "./",
+      "version": "1.0.0",
+      "description": "Drift control between a project's business-rule ledger and its code: a reconciliation gate before work starts and a wrap-up gate before a branch is finished."
+    }
+  ]
+}

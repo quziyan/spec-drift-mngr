@@ -1,0 +1,10 @@
+{
+  "name": "spec-drift-mngr",
+  "version": "1.0.0",
+  "description": "Drift control between a project's business-rule ledger and its code: a reconciliation gate before work starts and a wrap-up gate before a branch is finished.",
+  "author": { "name": "quziyan" },
+  "homepage": "https://github.com/quziyan/spec-drift-mngr",
+  "repository": "https://github.com/quziyan/spec-drift-mngr",
+  "license": "MIT",
+  "keywords": ["spec", "drift", "business-rules", "ledger", "skill"]
+}
