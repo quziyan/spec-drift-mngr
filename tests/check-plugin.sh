@@ -75,13 +75,26 @@ if len(value) < 40:
     sys.exit(f"description is only {len(value)} chars (need >= 40): {value!r}")
 '
 
-check "SKILL.md actually uses \${CLAUDE_SKILL_DIR} on a command line, not just in prose" python3 -c '
+check "\${CLAUDE_SKILL_DIR} appears exactly once in SKILL.md, in the <skill-dir> definition line" python3 -c '
 import sys
 lines = open("skills/spec-drift/SKILL.md", encoding="utf-8").read().splitlines()
-if not any("${CLAUDE_SKILL_DIR}" in l and "python3" in l for l in lines):
-    sys.exit("no line in SKILL.md has both ${CLAUDE_SKILL_DIR} and python3 -- "
-             "the substitution may be mentioned only in prose or a comment, "
-             "with a stale path actually driving the command")
+hits = [l for l in lines if "${CLAUDE_SKILL_DIR}" in l]
+if len(hits) != 1:
+    sys.exit(f"expected exactly 1 occurrence of the CLAUDE_SKILL_DIR variable in SKILL.md, "
+             f"found {len(hits)}: {hits!r}")
+line = hits[0]
+if "<skill-dir>" not in line or "means the directory that contains this SKILL.md" not in line:
+    sys.exit(f"the one CLAUDE_SKILL_DIR occurrence is not the <skill-dir> definition line: {line!r}")
+'
+
+check "every python3 command line in SKILL.md uses the <skill-dir> placeholder, never \${CLAUDE_SKILL_DIR}" python3 -c '
+import sys
+lines = open("skills/spec-drift/SKILL.md", encoding="utf-8").read().splitlines()
+bad = [l for l in lines if "python3" in l and
+       ("<skill-dir>" not in l or "${CLAUDE_SKILL_DIR}" in l)]
+if bad:
+    sys.exit(f"python3 command line(s) in SKILL.md not using the portable <skill-dir> "
+             f"placeholder (or still using CLAUDE_SKILL_DIR directly): {bad!r}")
 '
 
 # --- content hygiene, over every tracked file ------------------------------
