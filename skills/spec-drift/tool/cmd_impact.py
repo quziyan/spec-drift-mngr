@@ -69,7 +69,11 @@ def _innermost(spans_by_name: dict[str, list[tuple[int, int]]], lineno: int) -> 
 
 def _references(ctx, anchor: str) -> tuple[list[str], list[str]]:
     """→ (reference sites, files excluded wholesale because they failed to parse)."""
-    _relpath, name = repo.split_anchor(anchor)
+    anchor_relpath, name = repo.split_anchor(anchor)
+    # The scan below keys hits by the POSIX form of the relpath; compare the anchor in
+    # the same form so a backslash-written anchor on Windows still finds its own
+    # definition site (and excludes it) instead of reporting itself as a reference.
+    anchor_key = f"{anchor_relpath.replace(chr(92), '/')}::{name}"
     needle = name.split("::")[-1]          # for a class method Foo::bar, search for bar
     pattern = re.compile(rf"\b{re.escape(needle)}\b")
     hits: set[str] = set()
@@ -92,7 +96,7 @@ def _references(ctx, anchor: str) -> tuple[list[str], list[str]]:
                 continue
             owner = _innermost(spans_by_name, idx) or S.MODULE_KEY
             key = f"{relpath}::{owner}"
-            if key == anchor:              # the definition site itself is not a reference
+            if key == anchor_key:          # the definition site itself is not a reference
                 continue
             hits.add(key)
     return sorted(hits), sorted(skipped)

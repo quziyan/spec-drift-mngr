@@ -22,7 +22,7 @@ Fixes from adopting the skill on an existing Python service that had never used 
 
 ### Tests
 
-240 (was 225): multi-root exclusions and their downstream in `impact`, nested `tests` exclusion in three places, the CLI error surface (config shapes, malformed ledger, one-line guarantee), the `changed` diagnostic lines and their order.
+241 (was 225): multi-root exclusions and their downstream in `impact`, nested `tests` exclusion in three places, the CLI error surface (config shapes, malformed ledger, one-line guarantee), the `changed` diagnostic lines and their order.
 
 ## 1.0.1 — 2026-09-10
 

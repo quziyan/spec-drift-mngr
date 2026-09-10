@@ -127,5 +127,17 @@ class TestImpact(unittest.TestCase):
             self.assertIn("neither a ledger entry ID", out)
 
 
+class TestBackslashAnchorStillExcludesItsDefinition(unittest.TestCase):
+    def test_definition_site_not_reported_for_backslash_anchor(self):
+        """Hits are keyed by the POSIX relpath; an anchor written with a backslash
+        separator must still match its own definition site and be excluded."""
+        with tempfile.TemporaryDirectory() as d:
+            fx = build(Path(d))
+            posix_sites, _ = cmd_impact._references(fx.ctx, "pkg/mod.py::f")
+            backslash_sites, _ = cmd_impact._references(fx.ctx, "pkg\\mod.py::f")
+            self.assertEqual(backslash_sites, posix_sites)
+            self.assertNotIn("pkg/mod.py::f", backslash_sites)
+
+
 if __name__ == "__main__":
     unittest.main()

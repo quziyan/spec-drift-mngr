@@ -74,16 +74,19 @@ class TestConfigErrorsAreCleanCliErrors(unittest.TestCase):
                 self.assertNotIn("Traceback", err)
 
     def test_message_with_newline_is_still_one_stderr_line(self):
-        with tempfile.TemporaryDirectory() as d:
-            tmp = Path(d)
-            Fixture(tmp)
-            (tmp / ".spec-drift.json").write_text(
-                '{"code_root": "backend", "ledger": "a\\nb.md", "lock": "k", "owner": "A", "assistant": "B"}',
-                encoding="utf-8",
-            )
-            code, _out, err = _run_in(tmp, ["uncovered"])
-            self.assertEqual(code, 2)
-            self.assertEqual(len(err.splitlines()), 1, err)
+        """Inject a multi-line message directly: a file name cannot carry a raw newline
+        through FileNotFoundError (it is repr-escaped), so that path would not exercise
+        the normalisation."""
+        original = cli._dispatch
+        cli._dispatch = lambda args: (_ for _ in ()).throw(RuntimeError("first line\nsecond line"))
+        try:
+            err = io.StringIO()
+            with redirect_stderr(err):
+                code = cli.main(["check"])
+        finally:
+            cli._dispatch = original
+        self.assertEqual(code, 2)
+        self.assertEqual(err.getvalue(), "❌ first line second line\n")
 
     def test_missing_required_field_is_exit_2(self):
         with tempfile.TemporaryDirectory() as d:
