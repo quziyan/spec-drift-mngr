@@ -161,7 +161,7 @@ skill loads at all on its own — the cost accepted when the plugin ships withou
 thing that can fire it between the two gates is its own `description`.
 
 Setup: six independent `claude -p` sessions (Claude Code, plugin installed, three on `sonnet`,
-three on `opus`), each in a fresh fixture repo with no `CLAUDE.md`, given only the requirement
+three on `opus`), each in a fresh fixture repo carrying no project instructions file of any kind, given only the requirement
 ("refunds allowed for 21 days instead of 14"), "follow your normal workflow and the skills you
 have", and a scripted owner who approves everything. The prompt never mentions spec-drift.
 
