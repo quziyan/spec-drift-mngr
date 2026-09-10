@@ -153,3 +153,24 @@ What this does and does not show: path resolution and tool invocation are runtim
 (the compatibility question). Gate 1 *discipline* is model-dependent, not runtime-dependent: on the
 same OpenCode setup, `qwen3.8-max` followed the skill fully while `qwen3-235b-a22b` followed the
 mechanics but not the evidence rules. None of these runs is a RED/GREEN pair.
+
+## Trigger reliability (real sessions, 2026-09-10)
+
+The five scenarios test what the agent does once the skill is loaded. This run tests whether the
+skill loads at all on its own — the cost accepted when the plugin ships without hooks: the only
+thing that can fire it between the two gates is its own `description`.
+
+Setup: six independent `claude -p` sessions (Claude Code, plugin installed, three on `sonnet`,
+three on `opus`), each in a fresh fixture repo with no `CLAUDE.md`, given only the requirement
+("refunds allowed for 21 days instead of 14"), "follow your normal workflow and the skills you
+have", and a scripted owner who approves everything. The prompt never mentions spec-drift.
+
+| Result | Count |
+|---|---|
+| Gate 1 invoked through the Skill tool and a prediction-only commit made | 6 / 6 |
+| …placed after design approval and before the implementation plan (the designed position) | 5 / 6 |
+| …placed earlier, right after reading the requirement and before any design | 1 / 6 |
+| `check` exit 0 and clean tree afterwards | 6 / 6 |
+
+Caveats: n = 6, one runtime, one task shape. Subagents are a different matter — see
+`reference/known-limits.md` on skill visibility inside subagents.
