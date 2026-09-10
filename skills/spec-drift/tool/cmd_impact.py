@@ -27,21 +27,32 @@ FALSE_POSITIVE_NOTE = (
 
 
 def _all_py(ctx):
-    """Walk every .py file under ctx.code_roots, yielding (relpath, path).
+    """Walk every .py file under ctx.code_roots, yielding (display path, path).
 
-    With a multi-value code_root, `repo.build_ctx` has already checked that no two code
-    roots hold .py files sharing one relative path, so merging by relpath here is safe and
-    unambiguous; with a single value it degenerates into the original single-directory
-    walk, byte-for-byte equivalent (sorting by the relpath string gives the same order as
-    sorting the full paths under one common prefix).
+    The display path is the relpath relative to its code_root — the same form anchors
+    use. With a multi-value code_root, `repo.build_ctx` guarantees production files
+    never share a relpath across roots, but the files exempt from that check (anything
+    under a `tests` directory, `__init__.py`) may: those are kept, never dropped, and
+    when the same relpath really exists under several roots each occurrence is shown
+    root-qualified (`<code_root>/<relpath>`) so the reader can tell them apart. With a
+    single value this is the original single-directory walk, byte-for-byte equivalent.
     """
-    seen: dict[str, Path] = {}
+    found: list[tuple[str, Path, Path]] = []
     for root in ctx.code_roots:
         for path in root.rglob("*.py"):
-            relpath = str(path.relative_to(root))
-            seen[relpath] = path
-    for relpath, path in sorted(seen.items()):
-        yield relpath, path
+            found.append((path.relative_to(root).as_posix(), root, path))
+    counts: dict[str, int] = {}
+    for relpath, _root, _path in found:
+        counts[relpath] = counts.get(relpath, 0) + 1
+    rows = []
+    for relpath, root, path in found:
+        if counts[relpath] > 1:
+            root_rel = root.relative_to(ctx.repo_root).as_posix()
+            rows.append((f"{root_rel}/{relpath}", path))
+        else:
+            rows.append((relpath, path))
+    for display, path in sorted(rows):
+        yield display, path
 
 
 def _innermost(spans_by_name: dict[str, list[tuple[int, int]]], lineno: int) -> str | None:

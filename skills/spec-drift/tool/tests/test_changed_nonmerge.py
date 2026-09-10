@@ -261,9 +261,6 @@ class TestRunMergeWarning(unittest.TestCase):
             self.assertNotIn("merge commit", out)
 
 
-if __name__ == "__main__":
-    unittest.main()
-
 
 class TestRunPrintsBaseAndMainline(unittest.TestCase):
     """The reconciliation stands on "base was chosen correctly"; that must be visible."""
@@ -275,9 +272,11 @@ class TestRunPrintsBaseAndMainline(unittest.TestCase):
             _mod(repo, "def f():\n    return 1\n")
             code, out = _run_changed(repo)
             self.assertEqual(code, 0, out)
+            mainline_sha = _run(repo, "rev-parse", "refs/remotes/origin/main").strip()
             self.assertIn(f"base: {base}", out)
-            self.assertIn("mainline: origin/main @ ", out)
-            self.assertLess(out.index("base: "), out.index("Actual changed symbol set"))
+            self.assertIn(f"mainline: origin/main @ {mainline_sha}", out)
+            self.assertLess(out.index("base: "), out.index("mainline: "))
+            self.assertLess(out.index("mainline: "), out.index("Actual changed symbol set"))
 
     def test_base_line_printed_even_when_a_self_check_fails(self):
         with tempfile.TemporaryDirectory() as d:
@@ -288,4 +287,9 @@ class TestRunPrintsBaseAndMainline(unittest.TestCase):
             code, out = _run_changed(repo)
             self.assertEqual(code, 1)
             self.assertIn(f"base: {base}", out)
-            self.assertIn("self-check 1", out)
+            self.assertIn("mainline: origin/main @ ", out)
+            self.assertLess(out.index("mainline: "), out.index("self-check 1"))
+
+
+if __name__ == "__main__":
+    unittest.main()

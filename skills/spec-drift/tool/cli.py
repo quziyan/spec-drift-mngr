@@ -15,6 +15,7 @@ import cmd_impact
 import cmd_inventory
 import cmd_uncovered
 import cmd_write
+import ledger as L
 import repo
 
 
@@ -59,13 +60,15 @@ def main(argv: list[str] | None = None) -> int:
     a ledger file that does not exist or does not parse. Those are the user's
     configuration errors, so they are reported as one `❌` line on stderr, never as a
     traceback (a traceback reads as "the tool crashed", and hides the fix the message
-    already names).
+    already names). `check` is the one exception for a missing or empty ledger: it
+    reports those itself with exit 1, as its documented contract says.
     """
     args = build_parser().parse_args(argv)
     try:
         return _dispatch(args)
-    except (ValueError, RuntimeError, FileNotFoundError) as exc:
-        print(f"❌ {exc}", file=sys.stderr)
+    except (ValueError, RuntimeError, FileNotFoundError, L.LedgerError) as exc:
+        message = " ".join(str(exc).splitlines())   # one line, whatever the message holds
+        print(f"❌ {message}", file=sys.stderr)
         return CONFIG_ERROR_EXIT
 
 

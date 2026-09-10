@@ -43,6 +43,47 @@ class TestConfigErrorsAreCleanCliErrors(unittest.TestCase):
             self.assertTrue(err.startswith("❌ "), err)
             self.assertIn("pkg/mod.py", err)
             self.assertNotIn("Traceback", err)
+            self.assertEqual(len(err.splitlines()), 1)
+
+    def test_malformed_ledger_is_exit_2_for_check(self):
+        with tempfile.TemporaryDirectory() as d:
+            tmp = Path(d)
+            fx = Fixture(tmp)
+            fx.md_path.write_text(fx.md_path.read_text(encoding="utf-8").replace("**Boundary**\n", ""), encoding="utf-8")
+            code, _out, err = _run_in(tmp, ["check"])
+            self.assertEqual(code, 2)
+            self.assertIn("Boundary", err)
+            self.assertNotIn("Traceback", err)
+
+    def test_config_wrong_shapes_are_exit_2(self):
+        cases = {
+            "null": "must be a JSON object",
+            "42": "must be a JSON object",
+            "{not json": "not valid JSON",
+            '{"code_root": "backend", "ledger": null, "lock": "k", "owner": "A", "assistant": "B"}': "'ledger' must be a non-empty string",
+            '{"code_root": "backend", "ledger": "l", "lock": "k", "owner": "", "assistant": "B"}': "'owner' must be a non-empty string",
+        }
+        for text, expected in cases.items():
+            with self.subTest(config=text), tempfile.TemporaryDirectory() as d:
+                tmp = Path(d)
+                Fixture(tmp)
+                (tmp / ".spec-drift.json").write_text(text, encoding="utf-8")
+                code, _out, err = _run_in(tmp, ["check"])
+                self.assertEqual(code, 2, err)
+                self.assertIn(expected, err)
+                self.assertNotIn("Traceback", err)
+
+    def test_message_with_newline_is_still_one_stderr_line(self):
+        with tempfile.TemporaryDirectory() as d:
+            tmp = Path(d)
+            Fixture(tmp)
+            (tmp / ".spec-drift.json").write_text(
+                '{"code_root": "backend", "ledger": "a\\nb.md", "lock": "k", "owner": "A", "assistant": "B"}',
+                encoding="utf-8",
+            )
+            code, _out, err = _run_in(tmp, ["uncovered"])
+            self.assertEqual(code, 2)
+            self.assertEqual(len(err.splitlines()), 1, err)
 
     def test_missing_required_field_is_exit_2(self):
         with tempfile.TemporaryDirectory() as d:

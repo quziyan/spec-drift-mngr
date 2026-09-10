@@ -26,10 +26,23 @@ def load_config(repo_root: Path) -> dict:
     project-specific values must be written explicitly in the config.
     """
     path = repo_root / CONFIG_FILENAME
-    cfg = json.loads(path.read_text(encoding="utf-8"))
+    try:
+        cfg = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"{CONFIG_FILENAME} is not valid JSON: {exc}") from None
+    if not isinstance(cfg, dict):
+        raise ValueError(f"{CONFIG_FILENAME} must be a JSON object, got {type(cfg).__name__}")
     missing = [key for key in REQUIRED_CONFIG_KEYS if key not in cfg]
     if missing:
         raise ValueError(f"{CONFIG_FILENAME} is missing required field(s): {', '.join(missing)}")
+    # code_root has its own two shapes (string or list) and is checked where it is
+    # normalized; the other four must each be a non-empty string.
+    for key in REQUIRED_CONFIG_KEYS:
+        if key == "code_root":
+            continue
+        value = cfg[key]
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError(f"{CONFIG_FILENAME} field {key!r} must be a non-empty string, got {value!r}")
     return cfg
 
 

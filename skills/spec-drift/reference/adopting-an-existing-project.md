@@ -56,14 +56,14 @@ After the initial configuration you must first do one pass of **building the led
 
 Every anchor, the hot zone, the reference scan of `impact` and the change set of `changed` are all relative to `code_root`, so it is the one field worth ten minutes of thought. Measured on two real projects, both expensive adoption mistakes came from this single decision. Run through these before writing it:
 
-1. **Prefer one directory over a list.** A single `code_root` that contains several services is fine: `tests` directories are excluded at any depth, so `svc_a/tests/…` and `svc_b/tests/…` under one root never enter the business view. Reach for a list only when the code you want covered genuinely lives in directories with no common parent short of the repository root.
+1. **Prefer one directory over a list.** A single `code_root` that contains several services is fine: `tests` directories are excluded at any depth from the hot zone of `uncovered` and the anchor scan of `inventory`, so `svc_a/tests/…` and `svc_b/tests/…` under one root never inflate the backfill (`impact` still searches them for reference sites, and `changed` still counts a changed test symbol — both on purpose). Reach for a list only when the code you want covered genuinely lives in directories with no common parent short of the repository root.
 2. **If you do want a list, check the relative paths do not overlap.** Two roots that both hold `app/models.py`, `pkg/settings.py` or any other same-named module are refused at load time (the symbol name `relpath::name` would have two owners). `__init__.py` and anything under a `tests` directory are exempt from that comparison; everything else is not. A quick way to see the collisions before the tool tells you:
 
    ```bash
    for r in svc_a svc_b; do (cd "$r" && find . -name '*.py' -not -path '*/tests/*' -not -name __init__.py); done | sort | uniq -d
    ```
 
-   An empty result means the list is legal.
+   An empty result means no relative-path collision; the tool additionally refuses roots that repeat or nest (including through a symlink), which this scan does not show.
 3. **Know where your tests are relative to it.** Only directories named exactly `tests` are excluded; a `test/` directory, or test modules mixed into the package, are counted as production symbols and will show up in `uncovered`.
 4. **Anchors are relative to `code_root`, so changing it later means rewriting every anchor** (and `relink --by <owner>` for every entry). Decide once.
 5. **What is outside stays outside.** Frontend code, another language, configuration, SQL — none of it is seen by `check` or `changed`. If a rule lives on both sides of that line (a limit enforced in the backend and repeated in the frontend), say so in the entry's boundary line, because the mechanism will only ever watch one side.

@@ -309,9 +309,6 @@ class TestCliWiring(unittest.TestCase):
                 os.chdir(old)
 
 
-if __name__ == "__main__":
-    unittest.main()
-
 
 class TestLedgerAnchorsSkipNestedTests(unittest.TestCase):
     def test_nested_tests_anchor_is_not_inventoried(self):
@@ -324,3 +321,7 @@ class TestLedgerAnchorsSkipNestedTests(unittest.TestCase):
                 "def test_f():\n    pass\n", encoding="utf-8"
             )
             self.assertEqual(cmd_inventory._ledger_anchors(fx.ctx), ["pkg/mod.py::f"])
+
+
+if __name__ == "__main__":
+    unittest.main()

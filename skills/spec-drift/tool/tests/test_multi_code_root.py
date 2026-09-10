@@ -208,9 +208,6 @@ class TestUncoveredAcrossRoots(unittest.TestCase):
             self.assertIn("pkg/mod_b.py::unanchored_b", out)
 
 
-if __name__ == "__main__":
-    unittest.main()
-
 
 class TestUniquenessSkipsExcludedFiles(unittest.TestCase):
     """Files outside the business view must not veto the config.
@@ -240,6 +237,20 @@ class TestUniquenessSkipsExcludedFiles(unittest.TestCase):
             ctx = build_two_root_ctx(tmp, md=MD_TWO_ROOTS)
             self.assertEqual(len(ctx.code_roots), 2)
 
+    def test_impact_keeps_reference_sites_in_both_shared_tests_files(self):
+        """A file exempt from the uniqueness check must not be dropped by the scan of impact."""
+        with tempfile.TemporaryDirectory() as d:
+            tmp = Path(d)
+            self._two_roots(tmp)
+            (tmp / "svc_a" / "tests" / "conftest.py").write_text("from pkg.mod_a import f\n", encoding="utf-8")
+            (tmp / "svc_b" / "tests" / "conftest.py").write_text("x = f\n", encoding="utf-8")
+            ctx = build_two_root_ctx(tmp, md=MD_TWO_ROOTS)
+            sites, skipped = cmd_impact._references(ctx, "pkg/mod_a.py::f")
+            joined = "\n".join(sites)
+            self.assertIn("svc_a/tests/conftest.py", joined)
+            self.assertIn("svc_b/tests/conftest.py", joined)
+            self.assertEqual(skipped, [])
+
     def test_shared_production_module_is_still_rejected(self):
         with tempfile.TemporaryDirectory() as d:
             tmp = Path(d)
@@ -248,3 +259,7 @@ class TestUniquenessSkipsExcludedFiles(unittest.TestCase):
             with self.assertRaises(ValueError) as cm:
                 build_two_root_ctx(tmp, md=MD_TWO_ROOTS)
             self.assertIn("pkg/mod_a.py", str(cm.exception))
+
+
+if __name__ == "__main__":
+    unittest.main()
