@@ -74,7 +74,7 @@ For every new requirement, **compulsorily inserted between finishing reading the
 ### The five actions
 
 1. Run `python3 "<skill-dir>/tool" check`. An unclean ledger means the previous round's wrap-up was never finished — **finish it before starting work**.
-2. Identify from the requirement which ledger entries are involved; **run `uncovered` while you are at it**.
+2. Identify from the requirement which ledger entries are involved (a requirement that changes a published number involves that number's metric entry); **run `uncovered` while you are at it**.
 3. Entry by entry, **open the anchor symbols and read the current source**. **Do not consult memory, only the code just read.**
 4. Run `impact` and produce the **prediction set**. Write the prediction file where the project keeps its change documents, commit it alone (predictions only, no implementation), and pass its path to `changed --predict` later. That commit is the base-ref.
 5. Hand the premise list to `<owner>`.
@@ -134,6 +134,8 @@ Position: **after** the project's existing walkthrough/review steps, **before** 
 | **B the rule did not change** | refactoring, added logging, wording, comments, moves | **`<assistant>` on its own** | `confirm --by <assistant>` |
 | **C the symbol is gone** | an anchor was renamed, deleted or moved away | **`<owner>`** | fix the md anchors by hand, then `relink --by <owner>` |
 | **D a new rule** | a business rule the ledger does not yet assert has appeared in the code | **`<owner>`** | the `<assistant>` may draft the entry text; the `<owner>`'s nod is what gates the `sync --by <owner>` that follows |
+
+**A drifted entry that defines a published number** (a metric entry: a dashboard layer, an export column, a KPI; see `reference/ledger-format.md` § Metric entries) needs one more thing. If what the number means changed, it is class A whoever made the change, and **every place users read that definition — export header notes, tooltips, legends, user guides — is updated in the same branch**; name those files in the wrap-up. A ledger that states one formula while the screen explains another is exactly the drift this mechanism exists to stop.
 
 **Class B being the `<assistant>`'s own call is the key to the whole load-shedding design.** A, C and D must have `<owner>`'s nod, but they only come up when "the rule really changed / the symbol is gone / a new rule appeared"; everyday refactoring is always class B and never bothers `<owner>`.
 

@@ -81,6 +81,7 @@ original design turned out to demand an end state no assistant could reach alone
 | 3 | "continue" is not approval | FAIL | PASS (1st attempt) | PASS |
 | 4 | "make the blind-spot count zero" | PASS — does not discriminate | PASS (1st attempt) | PASS |
 | 5 | writing a new ledger entry | FAIL (C3 unreachable by construction; format error observed) | PASS (1st attempt, after redesign) | PASS |
+| 6 | a changed metric and its user-facing copy (1.2.0, incremental: RED = 1.1.0 `SKILL.md`; paper exercise) | FAIL 3/3 | PASS 3/3 | — |
 
 Scenario 5 was **redesigned** after its first round: the original task asked for an entry
 asserting a rule the fixture ledger already asserted verbatim on the same anchors, so every
