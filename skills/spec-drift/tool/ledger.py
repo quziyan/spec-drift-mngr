@@ -219,3 +219,30 @@ def bump_confirmed_date(md: str, entry_id: str, date_str: str, labels: Labels = 
                     lines[j] = date_str
                     return "\n".join(lines)
     raise LedgerError(f"{entry_id}: could not find the 'last confirmed' body line")
+
+
+def entry_books(md: str) -> dict[str, str]:
+    """For every entry ID `parse_ledger` would find, the title of the nearest preceding
+    level-1 or level-2 heading (the "book" it belongs to); "" when no such heading precedes it.
+
+    Read-only companion of `parse_ledger`, used by the catalog view. Book headings follow
+    the same fence rule as the section terminators in `parse_ledger` (a line whose
+    `lstrip()` starts with three backticks toggles the fence), so a `## ` line inside an
+    embedded example never counts as a book. Entry headings are matched on every line, as
+    `parse_ledger` matches them, so the two functions see the same set of IDs.
+    """
+    lines = md.replace("\r\n", "\n").replace("\r", "\n").split("\n")
+    books: dict[str, str] = {}
+    current = ""
+    in_fence = False
+    for line in lines:
+        if line.lstrip().startswith("```"):
+            in_fence = not in_fence
+            continue
+        if not in_fence and _SECTION.match(line):
+            current = line.lstrip("#").strip()
+            continue
+        m = _HEADING.match(line)
+        if m:
+            books.setdefault(m.group("id"), current)
+    return books

@@ -84,7 +84,7 @@ The four section labels of a ledger entry (the format is in `reference/ledger-fo
   8. and finally, that the four values are distinct.
 - Changing the labels never invalidates the lock. `assertion_sha` hashes only the assertion body and the boundary body — the labels take no part in it. So translating the labels in a ledger, or switching the config to a different set, needs no re-`sync` and leaves `check` behaviour unchanged.
 
-## The eight commands
+## The ten commands
 
 | Command | Legal state | Behaviour | Exit code |
 |---|---|---|---|
@@ -97,8 +97,10 @@ The four section labels of a ledger entry (the format is in `reference/ledger-fo
 | `relink <ID> --by <owner> --note <reason>` | S3 | rebuilds the lock record from the anchors currently in the markdown (recomputing every fingerprint), syncs the date in the markdown | 0; 1 when it does not match |
 | `relink <ID> --delete --by <owner> --note <reason>` | S2 | deletes that lock entry; does **not** sync the date in the markdown | 0; 1 when it does not match |
 | `changed --predict <path to the prediction file, relative to the repository root>` | — | computes the set of symbols this cycle actually changed; `base` is discovered automatically | 1 on a self-check or parse failure, otherwise 0 |
+| `catalog [--book <text>] [--format md\|json]` | — | renders the ledger and the lock as a catalog grouped by book: each entry's status, signer, signing time, note, rule and anchors | 0; 2 when --book matches no book |
+| `history <ID>` | — | every wording and signature one entry has had, from the git history of the ledger and the lock, plus the working tree | 0; 1 when the ID was never found or git fails |
 
-**Exit code 2**: the tool could not even start — `.spec-drift.json` missing (no such file walking up to the git boundary), not valid JSON, not an object, missing a required field or holding a wrong-typed one; a multi-value `code_root` that overlaps or is ambiguous; a ledger that does not parse (a missing label, a malformed anchor line). These are configuration errors, so every command reports them as one `❌ …` line on **stderr** and never as a Python traceback; the message names the offending file or field. Read `2` as "fix the config, then run again", as distinct from `1`, which is a real finding (drift, a failed self-check, a refused state transition). One documented exception: a ledger file that is **missing or parses to zero entries** is reported by `check` itself, on stdout with exit **1** (its "Exit-code semantics" below), because for `check` that is a finding, not a start-up failure; every other command that reads the ledger (`uncovered`, `impact`, argument-less `inventory`, the three write commands) treats a missing ledger as a start-up failure and exits 2; `inventory --file`/`--symbol` and `changed` do not read it at all.
+**Exit code 2**: the tool could not even start — `.spec-drift.json` missing (no such file walking up to the git boundary), not valid JSON, not an object, missing a required field or holding a wrong-typed one; a multi-value `code_root` that overlaps or is ambiguous; a ledger that does not parse (a missing label, a malformed anchor line). These are configuration errors, so every command reports them as one `❌ …` line on **stderr** and never as a Python traceback; the message names the offending file or field. Read `2` as "fix the config, then run again", as distinct from `1`, which is a real finding (drift, a failed self-check, a refused state transition). One documented exception: a ledger file that is **missing or parses to zero entries** is reported by `check` itself, on stdout with exit **1** (its "Exit-code semantics" below), because for `check` that is a finding, not a start-up failure; every other command that reads the ledger (`uncovered`, `impact`, argument-less `inventory`, `catalog`, the three write commands) treats a missing ledger as a start-up failure and exits 2; `inventory --file`/`--symbol` and `changed` do not read it at all.
 
 ### Exit-code semantics of `check`
 
@@ -125,7 +127,7 @@ The eight categories of element (the criteria are fixed, nothing may be added or
 
 A class anchor covers the **class body level** only and does not descend into method bodies — method bodies are enumerated separately as `Class::method`, so that class and method together do not count the same code twice; when taking stock of a class symbol the output additionally lists its method names, as a prompt to take stock of those separately.
 
-The three argument shapes are mutually exclusive: with no argument it takes stock of every production anchor currently in the ledger (any `tests` directory excluded), which is what you use to check completeness after building the ledger; `--symbol` takes stock of one symbol only; `--file` takes stock of every top-level symbol plus class methods in that file, which is what you use when building a ledger from **empty** (there are no anchors to derive anything from yet). The output always ends with "how to fill in the verdict" (three verdicts: asserted by some entry / belongs to another book, no entry / no business meaning) and "known limits" — the latter states honestly what this enumeration structurally cannot see (same-module calls, comparisons inside call arguments, absent semantics of the "deliberately does not do X" kind) rather than boasting about completeness.
+The three argument shapes are mutually exclusive: with no argument it takes stock of every production anchor currently in the ledger (any `tests` directory excluded), which is what you use to check completeness after building the ledger; `--symbol` takes stock of one symbol only; `--file` takes stock of every top-level symbol plus class methods in that file, which is what you use when building a ledger from **empty** (there are no anchors to derive anything from yet). The output always ends with "how to fill in the verdict" (four verdicts: asserted by some entry / belongs to another book, no entry / no business meaning / gap, no entry asserts this yet — ① only when the entry covers every decision the item makes, and ②–④ each state a reason, ④'s reason being a one-sentence draft assertion for the owner to rule on) and "known limits" — the latter states honestly what this enumeration structurally cannot see (same-module calls, comparisons inside call arguments, absent semantics of the "deliberately does not do X" kind) rather than boasting about completeness.
 
 ### The self-checks and validations of `changed`
 
@@ -169,6 +171,32 @@ Three states of the remote HEAD are rejected loudly rather than worked around, e
 The fetch uses an explicit refspec, `git fetch origin +refs/heads/<name>:refs/remotes/origin/<name>`, so that the remote-tracking ref is created and updated whatever `remote.origin.fetch` says: under a narrow refspec (a `--single-branch` clone, or one edited by hand) a plain `git fetch origin` exits 0 without moving `origin/<mainline>` at all. After the fetch the ref is verified to exist.
 
 Requirements: a remote named `origin` must be configured — this is checked first with `git remote get-url origin`, because without that guard a sub-directory named `origin` that happens to be a git repository is silently used as the remote by both `ls-remote` and `fetch`; the remote HEAD must point at a branch; and the client needs git ≥ 2.8 with a server that advertises the symref (older clients and servers are untested). Renaming the default branch on the remote normally needs nothing done locally; the one exception is a new name that collides with an old tracking ref as a directory/file conflict (`main` → `main/next`), where the fetch fails loudly and carries git's own `git remote prune origin` hint.
+
+### `catalog` and `history`
+
+Both are read-only views: they never write the ledger or the lock, and neither is a gate — drift alarms keep their one outlet, `check`.
+
+`catalog` renders the ledger as a catalog of approved definitions, one table per book. A book is the nearest `#` or `##` heading above an entry (headings inside code fences do not count); entries above any such heading are grouped under `(no book)`. Books appear in ledger order, and entries in ledger order within their book. Every entry gets one status, the first rule that matches:
+
+| Status | Meaning |
+|---|---|
+| `unsigned` | S1: in the ledger, not yet in the lock |
+| `anchors changed` | S3: the anchor sets of the ledger and the lock differ |
+| `anchor missing` | S4, and at least one ledger anchor no longer resolves to a symbol |
+| `drifted` | S4, and the rule or boundary text, or some anchor's code, changed since the signature |
+| `consistent` | S4, and the text and every fingerprint still match the signature |
+
+"Signed by", "Signed at" and "Note" come from the lock record (`confirmed_by`, `confirmed_at`, `note`) and are empty for an unsigned entry; in a cell, multi-line text is joined with a space and `|` is escaped. Entries present only in the lock (S2, removed from the ledger) are not rows: they are named on one line after the tables, `Lock-only entries (S2, removed from the ledger): …`, left out when there are none. `--book <text>` keeps only the books whose title contains `<text>` (a case-sensitive substring); the summary line then counts only what is shown, and the S2 line is still printed. When no book matches, it prints one `❌` line to stderr naming the books there are and exits 2. `--format json` prints the same rows as a JSON object with the keys `ledger`, `entries` and `lock_only`; the rule and boundary keep their newlines, and the signature fields of an unsigned entry are `null`. The exit code is 0 whenever the catalog was printed, drifted or unsigned entries included; a missing ledger exits 2 like any other start-up failure.
+
+`history <ID>` reads every commit that touched the ledger or the lock (`git log --reverse` over the two current paths), then the working tree, and prints a new version each time the entry's rule text, boundary text, anchor set or lock record differs from the previous version printed (the title and the "last confirmed" date alone do not make a version). Each version names what changed — `entry added`, `entry removed`, `text changed`, `anchors changed`, `signature changed` — and the signature state at that version:
+
+- `signed by <by> at <at>: <note>` — the lock record's `assertion_sha` is that of this version's text;
+- `signature is for an earlier text (edited after signing)` — the lock has a record, but for other wording;
+- `unsigned` — the lock has no record for the entry.
+
+Rule, boundary and anchors are printed for the first version and whenever they change; a signature-only change prints only its signature line, and a removal only its heading. Edits not yet committed appear as a last version dated `working tree` and labelled `uncommitted`. A revision whose ledger does not parse is skipped, with a one-line note under the header (`ledger did not parse at <sha>: …`); a lock that is absent or not valid JSON at a revision counts as empty. Exit code: 0 when at least one version was printed; 1 when the ID is in no committed revision and not in the working tree, or when git fails (not a git repository, say), reported as one `❌` line.
+
+Known limits of `history`: every revision is parsed with today's labels, so a revision written with other label wording is skipped with that note; and **a renamed ledger or lock path is not followed** — git is asked about the current paths only, so revisions from before a rename are not seen.
 
 ## The four states S1–S4 and their legal commands
 

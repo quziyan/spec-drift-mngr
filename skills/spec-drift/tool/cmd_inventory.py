@@ -48,6 +48,7 @@ VERDICT_KINDS = (
     "asserted by entry X",
     "belongs to another book, no entry this round",
     "no business meaning (purely technical)",
+    "gap: no entry asserts this yet",
 )
 
 KNOWN_LIMITATIONS = """\
@@ -334,13 +335,18 @@ def _print_footer(grand: dict[str, int]) -> None:
 
     print("## How to fill in the verdict\n")
     print(
-        "There are only three verdicts: ① `" + VERDICT_KINDS[0] + "` — the meaning of this "
-        "item can be matched to a sentence in the assertion text of some ledger entry; ② `"
+        "There are four verdicts: ① `" + VERDICT_KINDS[0] + "` — the meaning of this item "
+        "matches a sentence in the assertion text of that entry, and the quoted wording must "
+        "be findable verbatim in the ledger **and must cover every decision this item makes** "
+        "(an item that decides two things is ① only if the entry asserts both); ② `"
         + VERDICT_KINDS[1] + "` — the item does carry business meaning, but it belongs to "
         "another book, one the head of this ledger has already placed outside it; ③ `"
         + VERDICT_KINDS[2] + "` — changing it changes no state transition and nothing shown "
-        "to the outside. **Verdicts ② and ③ must state a reason**, ① can simply cite the "
-        "entry ID.\n"
+        "to the outside, and \"the ledger does not say so\" is never a reason for ③; ④ `"
+        + VERDICT_KINDS[3] + "` — the item decides something stored, returned, refused or "
+        "shown, and no entry covers it: the reason is a one-sentence draft assertion for the "
+        "owner to rule on. **Verdicts ②, ③ and ④ must state a reason**, and ① can simply "
+        "cite the entry ID.\n"
     )
     print(KNOWN_LIMITATIONS)
 
