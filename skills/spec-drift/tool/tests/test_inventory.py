@@ -323,5 +323,43 @@ class TestLedgerAnchorsSkipNestedTests(unittest.TestCase):
             self.assertEqual(cmd_inventory._ledger_anchors(fx.ctx), ["pkg/mod.py::f"])
 
 
+class TestFourthVerdict(unittest.TestCase):
+    FOOTER = (
+        "There are four verdicts: ① `asserted by entry X` — the meaning of this item matches "
+        "a sentence in the assertion text of that entry, and the quoted wording must be "
+        "findable verbatim in the ledger **and must cover every decision this item makes** "
+        "(an item that decides two things is ① only if the entry asserts both); ② `belongs "
+        "to another book, no entry this round` — the item does carry business meaning, but "
+        "it belongs to another book, one the head of this ledger has already placed outside "
+        "it; ③ `no business meaning (purely technical)` — changing it changes no state "
+        "transition and nothing shown to the outside, and \"the ledger does not say so\" is "
+        "never a reason for ③; ④ `gap: no entry asserts this yet` — the item decides "
+        "something stored, returned, refused or shown, and no entry covers it: the reason is "
+        "a one-sentence draft assertion for the owner to rule on. **Verdicts ②, ③ and ④ "
+        "must state a reason**, and ① can simply cite the entry ID."
+    )
+
+    def test_fourth_verdict_and_cover_every_decision_present(self):
+        with tempfile.TemporaryDirectory() as d:
+            fx = build(Path(d))
+            _code, out = run_inventory(fx, symbol="pkg/mod.py::f")
+            self.assertIn("gap: no entry asserts this yet", out)
+            self.assertIn("must cover every decision this item makes", out)
+
+    def test_verdict_kinds_are_four_and_first_three_unchanged(self):
+        self.assertEqual(cmd_inventory.VERDICT_KINDS, (
+            "asserted by entry X",
+            "belongs to another book, no entry this round",
+            "no business meaning (purely technical)",
+            "gap: no entry asserts this yet",
+        ))
+
+    def test_footer_paragraph_is_the_agreed_text(self):
+        with tempfile.TemporaryDirectory() as d:
+            fx = build(Path(d))
+            _code, out = run_inventory(fx, symbol="pkg/mod.py::f")
+            self.assertIn("## How to fill in the verdict\n\n" + self.FOOTER + "\n", out)
+
+
 if __name__ == "__main__":
     unittest.main()

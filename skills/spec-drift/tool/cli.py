@@ -9,8 +9,10 @@ import argparse
 import sys
 from datetime import date
 
+import cmd_catalog
 import cmd_changed
 import cmd_check
+import cmd_history
 import cmd_impact
 import cmd_inventory
 import cmd_uncovered
@@ -48,6 +50,17 @@ def build_parser() -> argparse.ArgumentParser:
         help="symbols actually changed in this cycle (non-merge commits and merge commits)",
     )
     changed_parser.add_argument("--predict", required=True, help="prediction file path, relative to the repository root")
+    catalog_parser = sub.add_parser(
+        "catalog",
+        help="the ledger and its signatures as a catalog of approved definitions (read-only)",
+    )
+    catalog_parser.add_argument("--book", help="keep only books whose title contains this text (case-sensitive)")
+    catalog_parser.add_argument("--format", choices=("md", "json"), default="md", help="output format (default md)")
+    history_parser = sub.add_parser(
+        "history",
+        help="every wording and signature an entry has had, from git history (read-only)",
+    )
+    history_parser.add_argument("entry_id")
     return parser
 
 
@@ -84,6 +97,10 @@ def _dispatch(args) -> int:
         return cmd_impact.run(ctx, args.target)
     if args.command == "changed":
         return cmd_changed.run(ctx, args.predict)
+    if args.command == "catalog":
+        return cmd_catalog.run(ctx, book=args.book, fmt=args.format)
+    if args.command == "history":
+        return cmd_history.run(ctx, args.entry_id)
     if args.command in ("sync", "confirm", "relink"):
         return cmd_write.run(
             ctx, args.command, args.entry_id, args.by, args.note,
