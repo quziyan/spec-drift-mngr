@@ -22,12 +22,20 @@ After the initial configuration you must first do one pass of **building the led
 |---|---|---|
 | 1 | **Build the ledger**: read the requirement documents and the code, write assertions, attach anchors, `sync` | Building the ledger means a human reading code, so it is **inevitably incomplete** — which is what makes steps 2 and 3 mandatory |
 | 2 | **`uncovered`**: which symbols in the hot zone carry no anchor at all | Give each symbol one of the three **symbol-level verdicts**: "anchor added" / "knowingly not anchored (state the price)" / "no business meaning" — the same three words the command prints in its footer |
-| 3 | **`inventory`**: what is missing **inside** the symbols that do carry anchors | Exhaustive enumeration of the eight AST element kinds — **the only systematic way to find a sentence the ledger is missing**. Each item gets one of the three **item-level verdicts** the command prints: ① "asserted by entry X" / ② "belongs to another book, no entry this round" / ③ "no business meaning (purely technical)" |
-| 4 | **Two-family review of every batch** | Self-review has a high error rate; see the measured numbers below |
+| 3 | **`inventory`**: what is missing **inside** the symbols that do carry anchors | Exhaustive enumeration of the eight AST element kinds — **the only systematic way to find a sentence the ledger is missing**. Each item gets one of the four **item-level verdicts** the command prints: ① "asserted by entry X" / ② "belongs to another book, no entry this round" / ③ "no business meaning (purely technical)" / ④ "gap: no entry asserts this yet" (the reason is a one-sentence draft assertion) |
+| 4 | **Two-family review of every batch — the first-pass entries included, with the requirement documents in hand** | Self-review has a high error rate, and the first pass itself is wrong more often than it looks; see the measured numbers below |
 | 5 | Merge the gaps into draft assertions, then the **owner reviews the draft list and decides per item which drafts become entries**, before any `sync` | Creating an entry is a class-D disposition; the assistant may draft, but only the owner's nod turns a draft into an entry |
 | 6 | Only now does the project enter the steady state of the two gates | — |
 
 **Be honest about the cost** (measured on an already-launched production system over 2026-09-07/08): four books came to **2777 AST elements and 492 symbol verdicts**, took a dozen rounds of two-track review and a full day; the ledger grew from 75 entries to 97, turning up 22 rules nobody had asserted before. Two more numbers to expect, measured on a second, smaller service (2026-09-10): a single 1000-line file produced **569 inventory items, six in ten of them name assignments and library calls**; and because `sync` has no batch form, **building a ledger of N entries means asking the owner for N separate nods** — at a hundred entries that is a real session, plan it as one.
+
+**The first pass is wrong more often than it looks** (two books of a second service, 2026-09-11). A first pass written from one reading of the code had 3 of 14 entries that said the opposite of the code; a first pass written line by line from an unusually precise design document had 7 of 15 that needed correcting, because the document's summaries ("every caller shares this gate", "falls back to the latest value") each had an exception branch in the code. The more confident the document, the easier it is to copy it as if it were the code — which is why step 4 reviews the first-pass entries, not only the gaps.
+
+**What belongs in the ledger**: rules whose silent change would mislead a user or corrupt a stored table. Plumbing (locks, connections, path helpers, dtype mechanics, sort order kept for determinism) never goes in. As a feel for scale, a book of about a thousand lines that gains thirty entries from one inventory has been over-ledgered: in the measured runs, 39 drafted gaps consolidated into 4 to 6 entries once reviewed.
+
+**Ask every verdict writer to end with a list of contradictions**: any line whose code contradicts a ledger sentence or a sentence of the requirement documents, quoting both. It costs nothing, and in the measured runs it found three of the seven real contradictions in one book, none of which were in any reviewer's brief.
+
+**If the project publishes numbers** (a dashboard, exported files), write a metric book as described in `ledger-format.md` § Metric entries. Signed, it doubles as the catalog of the definitions the business has approved; `catalog` renders it.
 
 **Three practical lessons, all learned the hard way this time:**
 
@@ -37,7 +45,7 @@ After the initial configuration you must first do one pass of **building the led
 
 **The three mistakes that verdicts most often make, written here as a checklist:**
 
-1. When judging "already asserted by entry X", **the ledger wording you quote must be findable verbatim in the ledger file**; if it cannot be found, you made it up.
+1. When judging "already asserted by entry X", **the ledger wording you quote must be findable verbatim in the ledger file**; if it cannot be found, you made it up. **And it must cover every decision the item makes**: an item that decides two things (a threshold and a fallback) is ① only if the entry asserts both — in the measured reviews, 10–20% of ① verdicts had a genuine quote that covered only half of what the line decides.
 2. When judging "belongs to another book", **you must name an entry ID that really exists**. Naming only a domain and no ID usually means that entry does not exist at all.
 3. When judging "no business meaning" (at either level), **the reason must not be "the ledger does not say so"** — "the ledger does not say so" is the definition of "an entry waiting to be written", and reasoning from it to "no business meaning" lets that one sentence dismiss every gap there is.
 

@@ -36,3 +36,15 @@ Exactly one format error is silent: a heading that does not match `### <ID> <tit
 Every other format error on the list above fails loudly. A missing label, a repeated label, a malformed anchor line, an empty anchors section, a "last confirmed" block that is not exactly one line, a duplicate entry ID — each raises `LedgerError`, which nothing catches, so the command aborts naming the entry and exits non-zero.
 
 The four labels are configurable: the optional `labels` block of `.spec-drift.json` replaces them with any other wording or language, all four or none. The rules a label value must satisfy are in `tool/README.md`.
+
+## Metric entries: a catalog of approved definitions
+
+When an entry defines a number that people see (a dashboard layer, an export column, a KPI), write it as a **metric entry**. The format is the same; what changes is how the four blocks are used:
+
+- **One entry per published number.** The first sentence of the current rule reads `<name> = <formula>; source <column or field>`, and the rest states units, rounding and what a missing value shows as.
+- **The boundary names what the tool cannot see**: the date or version the definition took effect, and every place the number lives outside Python code — database column definitions, SQL kept outside Python, frontend code, and the user-facing descriptions of the number (export header notes, tooltips, legends).
+- **Anchor the function that computes the number and every function that derives the displayed value from it**, and prefer the narrowest symbols: several metric entries anchored to one shared function all drift together when it changes, and each needs its own confirmation.
+- **Keep metric entries in a book of their own** (`## Book N: metric definitions`). Rule entries elsewhere then say "definition in R-MET-006" and assert only edge behaviour; otherwise one formula lives in two entries and is updated in only one of them.
+
+Signing a metric entry (`sync` / `confirm --by <owner>`) is the owner's approval of that definition. `catalog` lists the book with each entry's status, signer, date and note; `history <ID>` lists every wording the entry has had and who signed which.
+

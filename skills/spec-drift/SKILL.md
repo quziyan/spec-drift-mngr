@@ -148,7 +148,7 @@ Position: **after** the project's existing walkthrough/review steps, **before** 
 | Never | Why |
 |---|---|
 | **Never hard-block CI** | this is a process gate, not a build gate; the point of `check` exiting non-zero is that a human sees it |
-| **Never confirm in bulk** | none of the eight commands has a bulk entry point — type them one at a time. What that prevents is blind confirmation under alarm fatigue |
+| **Never confirm in bulk** | no command has a bulk entry point — type them one at a time. What that prevents is blind confirmation under alarm fatigue |
 | **Never go by feel in the prediction step** | P2 must have `impact` output as its basis |
 
 ---
