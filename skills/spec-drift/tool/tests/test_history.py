@@ -203,6 +203,68 @@ class TestHistoryEdges(unittest.TestCase):
             self.assertEqual(code, 0)
             self.assertEqual(versions(out)[0][1].splitlines()[0], "Signature: unsigned")
 
+SIDE_RULE = "f always returns the number one."
+
+
+class TestMergedBranchWordingIsListed(unittest.TestCase):
+    """A wording written on a branch that a merge then discarded (`-s ours`) is still a version.
+
+    git's default path-limited walk follows only the parent a merge is identical to, so
+    without --full-history the side branch's commit is never read at all.
+    """
+
+    def test_side_branch_wording_survives_an_ours_merge(self):
+        import subprocess
+        with tempfile.TemporaryDirectory() as d:
+            repo = Path(d) / "r"
+            subprocess.run(["git", "init", "-q", "-b", "main", str(repo)], check=True)
+            _run(repo, "config", "user.name", "Test")
+            _run(repo, "config", "user.email", "test@example.invalid")
+            fx = Fixture(repo)
+            commit(repo, "add entry")
+            _run(repo, "checkout", "-q", "-b", "side")
+            edit_rule(fx, OLD_RULE, SIDE_RULE)
+            side = commit(repo, "reword on side")
+            _run(repo, "checkout", "-q", "main")
+            _run(repo, "merge", "-q", "-s", "ours", "--no-edit", "side")
+
+            default_walk = _run(repo, "log", "--format=%H", "--", "docs/ledger.md")
+            self.assertNotIn(side, default_walk, "the fixture must be the pruning case")
+
+            code, out = run_history(fx)
+            self.assertEqual(code, 0, out)
+            side_versions = [(h, b) for h, b in versions(out) if side[:9] in h]
+            self.assertEqual(len(side_versions), 1, out)
+            heading, body = side_versions[0]
+            self.assertIn("text changed", heading)
+            self.assertIn("> " + SIDE_RULE, body)
+
+
+class TestLockFingerprintOnlyChangeIsNotAVersion(unittest.TestCase):
+    def test_fingerprint_only_lock_edit_adds_no_version(self):
+        import json
+        with tempfile.TemporaryDirectory() as d:
+            fx, _shas = lifecycle(Path(d))
+            lock = json.loads(fx.lock_path.read_text(encoding="utf-8"))
+            lock["R-T-001"]["anchors"] = {a: "sha256:changed" for a in lock["R-T-001"]["anchors"]}
+            fx.lock_path.write_text(json.dumps(lock), encoding="utf-8")
+            commit(fx.root, "fingerprint only")
+            code, out = run_history(fx)
+            self.assertEqual(code, 0, out)
+            self.assertIn("· 4 versions", out)
+
+
+class TestMalformedWorkingTreeLedgerIsANote(unittest.TestCase):
+    def test_note_and_exit_zero(self):
+        with tempfile.TemporaryDirectory() as d:
+            fx, _shas = lifecycle(Path(d))
+            md = fx.md_path.read_text(encoding="utf-8")
+            fx.md_path.write_text(md.replace("**Boundary**\n", "", 1), encoding="utf-8")
+            code, out = run_history(fx)
+            self.assertEqual(code, 0, out)
+            self.assertIn("ledger did not parse at working tree:", out)
+            self.assertIn("· 4 versions", out)
+
 
 if __name__ == "__main__":
     unittest.main()

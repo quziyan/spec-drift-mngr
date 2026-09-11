@@ -2,7 +2,11 @@
 
 Walks the commits that touched the ledger or the lock, oldest first, then the working
 tree, and prints a new version each time the entry's snapshot differs from the previous
-version printed. A snapshot is the entry's rule text, boundary text and anchor set, plus
+version printed. The walk uses `--full-history`: git's default history simplification
+follows only one parent of a merge whose result equals that parent, so a branch whose
+wording (or signature) a merge discarded would never be seen, and "every wording" would
+quietly become "every wording on the surviving side". `--date-order` keeps parents
+before children; commits from parallel branches interleave by commit date. A snapshot is the entry's rule text, boundary text and anchor set, plus
 the lock record's assertion_sha, confirmed_by, confirmed_at and note. The title and the
 "last confirmed" date are carried for display but do not make a version on their own:
 neither is part of what a signature covers.
@@ -121,7 +125,8 @@ def _committed_steps(ctx: repo.Ctx, entry_id: str, ledger_rel: str, lock_rel: st
     .spec-drift.json), so a config that lives in a subdirectory of the git repository
     still reads the right files. Raises gitutil.SelfCheckError when git fails.
     """
-    log = gitutil.git(ctx.repo_root, "log", "--format=%H%x09%cI", "--reverse",
+    log = gitutil.git(ctx.repo_root, "log", "--full-history", "--date-order",
+                      "--format=%H%x09%cI", "--reverse",
                       "--", ledger_rel, lock_rel)
     steps = []
     for line in log.splitlines():

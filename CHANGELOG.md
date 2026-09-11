@@ -9,7 +9,7 @@ A ledger can now be read as a catalog of approved definitions — what each entr
 ### Added
 
 - **`catalog [--book <text>] [--format md|json]`**: the ledger and the lock rendered as a table per book: status (`consistent` / `drifted` / `anchor missing` / `unsigned` / `anchors changed`), signer, signing time, note, rule and anchors; entries left only in the lock are listed after the tables. Exit 0 whatever the statuses (it is a view, not a gate); 2 when `--book` matches no book. (`cmd_catalog.py`, `ledger.entry_books`)
-- **`history <ID>`**: every wording and every signature one entry has had, from the git history of the ledger and the lock, plus the uncommitted working tree; each version says what changed and whether its text was the one signed. Exit 0; 1 when the ID was never found or git fails. (`cmd_history.py`)
+- **`history <ID>`**: every wording and every signature one entry has had, from the git history of the ledger and the lock, plus the uncommitted working tree; each version says what changed and whether its text was the one signed. It walks the full history (`--full-history`), so a wording written and signed on a branch that a merge later discarded is still listed. Exit 0; 1 when the ID was never found or git fails. (`cmd_history.py`)
 - **A fourth `inventory` verdict, `gap: no entry asserts this yet`**, whose reason is a one-sentence draft assertion; the verdict note now says a ① quote must cover every decision the item makes. The first three verdict strings are unchanged. (`cmd_inventory.py`)
 
 ### Changed (skill text)

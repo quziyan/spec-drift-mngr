@@ -62,5 +62,6 @@ Two additions, nothing removed:
 - Gate 2, after the table of the four dispositions: a drifted entry that defines a published number is class A when its meaning changed, and every place users read that definition is updated in the same branch.
 - Gate 1, action 2: a requirement that changes a published number involves that number's metric entry.
 
-The shipped `SKILL.md` is byte-identical to the text the GREEN runs were given.
+The shipped `SKILL.md` is byte-identical to the text the GREEN runs were given. The scenario
+exercises the Gate 2 clause only; the one-line Gate 1 note is not tested by it.
 

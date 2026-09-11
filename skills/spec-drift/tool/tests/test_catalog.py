@@ -350,5 +350,55 @@ class TestEntryBooks(unittest.TestCase):
         self.assertEqual(list(L.entry_books(FENCED)), list(L.parse_ledger(FENCED)))
 
 
+class TestCatalogEdges(unittest.TestCase):
+    """Overlapping conditions resolve by the documented precedence; filters keep the S2 line."""
+
+    def _signed_fixture(self, tmp: Path) -> Fixture:
+        fx = Fixture(tmp)
+        with redirect_stdout(io.StringIO()):
+            assert cmd_write.run(fx.ctx, "sync", "R-T-001", "Alice", "n", False, TODAY) == 0
+        return fx
+
+    def _status(self, fx) -> str:
+        import json as _json
+        code, out, _err = run_catalog(fx, fmt="json")
+        self.assertEqual(code, 0, out)
+        return _json.loads(out)["entries"][0]["status"]
+
+    def test_anchor_missing_outranks_drift(self):
+        with tempfile.TemporaryDirectory() as d:
+            fx = self._signed_fixture(Path(d))
+            md = fx.md_path.read_text(encoding="utf-8")
+            fx.md_path.write_text(md.replace("f always returns 1.", "f always returns one."), encoding="utf-8")
+            (fx.root / "backend" / "pkg" / "mod.py").write_text("def other():\n    return 1\n", encoding="utf-8")
+            self.assertEqual(self._status(fx), "anchor missing")
+
+    def test_anchors_changed_outranks_text_drift(self):
+        with tempfile.TemporaryDirectory() as d:
+            fx = self._signed_fixture(Path(d))
+            (fx.root / "backend" / "pkg" / "mod.py").write_text(
+                "def f():\n    return 1\n\n\ndef g():\n    return 2\n", encoding="utf-8")
+            md = fx.md_path.read_text(encoding="utf-8")
+            md = md.replace("f always returns 1.", "f always returns one.")
+            md = md.replace("- `pkg/mod.py::f`", "- `pkg/mod.py::f`\n- `pkg/mod.py::g`")
+            fx.md_path.write_text(md, encoding="utf-8")
+            self.assertEqual(self._status(fx), "anchors changed")
+
+    def test_no_lock_file_means_every_entry_unsigned(self):
+        with tempfile.TemporaryDirectory() as d:
+            fx = Fixture(Path(d))
+            self.assertFalse(fx.lock_path.exists())
+            self.assertEqual(self._status(fx), "unsigned")
+
+    def test_book_filter_keeps_the_lock_only_line(self):
+        with tempfile.TemporaryDirectory() as d:
+            fx = build(Path(d))
+            code, out, _err = run_catalog(fx, book="Book A")
+            self.assertEqual(code, 0, out)
+            self.assertIn("## Book A: metrics", out)
+            self.assertNotIn("## Book B", out)
+            self.assertIn("Lock-only entries (S2, removed from the ledger): R-C-008", out)
+
+
 if __name__ == "__main__":
     unittest.main()
