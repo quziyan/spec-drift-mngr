@@ -1,17 +1,8 @@
 {
   "files": [
-    {
-      "path": ".claude-plugin/plugin.json",
-      "field": "version"
-    },
-    {
-      "path": ".claude-plugin/marketplace.json",
-      "field": "plugins.0.version"
-    },
-    {
-      "path": ".codex-plugin/plugin.json",
-      "field": "version"
-    }
+    { "path": ".claude-plugin/plugin.json", "field": "version" },
+    { "path": ".claude-plugin/marketplace.json", "field": "plugins.0.version" },
+    { "path": ".codex-plugin/plugin.json", "field": "version" }
   ],
   "audit": {
     "exclude": [
@@ -20,7 +11,7 @@
       ".git",
       ".version-bump.json",
       "scripts/bump-version.sh",
-      "skills/spec-drift/evals"
+      "evals"
     ]
   }
 }
