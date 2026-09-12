@@ -51,6 +51,22 @@ def is_test_path(relpath: str) -> bool:
     return TEST_DIR_NAME in parts[:-1]
 
 
+VENDOR_DIR_NAMES = frozenset({"node_modules"})
+
+
+def is_vendor_path(relpath: str) -> bool:
+    """True when any directory segment of relpath is a third-party vendor directory (`node_modules`).
+
+    A JavaScript toolchain installed inside a code_root drops Python helper files into
+    `node_modules` (a debugger script, a build helper). They belong to no rule of the
+    project, yet they sat inside the scan domain of `impact` and could reach `uncovered`
+    through a configured hot-zone directory. Unlike `tests`, which `impact` and `changed`
+    keep on purpose, vendor files are left out of every view.
+    """
+    parts = relpath.replace("\\", "/").split("/")
+    return any(p in VENDOR_DIR_NAMES for p in parts[:-1])
+
+
 def find_repo_root(start: Path | None = None) -> Path:
     """Walk up from start (cwd by default) looking for .spec-drift.json; that level is the repository root.
 
@@ -117,7 +133,7 @@ def _validate_multi_code_roots(raw_values: list[str], roots: list[Path]) -> None
             continue
         for path in root.rglob("*.py"):
             rel = path.relative_to(root).as_posix()
-            if path.name == "__init__.py" or is_test_path(rel):
+            if path.name == "__init__.py" or is_test_path(rel) or is_vendor_path(rel):
                 continue
             owner = seen.get(rel)
             if owner is not None and owner != root:

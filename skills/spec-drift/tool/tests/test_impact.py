@@ -141,3 +141,26 @@ class TestBackslashAnchorStillExcludesItsDefinition(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestImpactInvolvedAndVendor(unittest.TestCase):
+    def test_lists_every_entry_that_anchors_the_symbol(self):
+        with tempfile.TemporaryDirectory() as d:
+            out = run(build(Path(d)), "pkg/mod.py::f")
+            self.assertIn("[entries involved]", out)
+            self.assertIn("R-T-001 (via pkg/mod.py::f)", out)
+
+    def test_unanchored_symbol_says_no_entry(self):
+        with tempfile.TemporaryDirectory() as d:
+            out = run(build(Path(d)), "pkg/mod.py::caller")
+            self.assertIn("(none — no entry anchors it)", out)
+
+    def test_node_modules_is_left_out_of_the_search_domain(self):
+        with tempfile.TemporaryDirectory() as d:
+            fx = build(Path(d))
+            vendor = Path(d) / "backend" / "node_modules" / "tool"
+            vendor.mkdir(parents=True)
+            (vendor / "helper.py").write_text("from pkg.mod import f\n\n\ndef use():\n    return f()\n", encoding="utf-8")
+            out = run(fx, "pkg/mod.py::f")
+            self.assertNotIn("node_modules/tool/helper.py", out)
+            self.assertIn("pkg/mod.py::caller", out)

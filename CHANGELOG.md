@@ -2,6 +2,24 @@
 
 All notable changes to this plugin. The version is the one in `.claude-plugin/plugin.json`.
 
+## 1.3.0 — 2026-09-12
+
+What two real adoptions kept doing by hand is now in the tool, and three rough edges they hit are gone. Nothing about the ledger format, the lock or the gates changed; existing locks need no re-signing.
+
+### Added
+
+- **`verdicts <file>… [--book <name>]…`**: grades filled-in `inventory` tables against the verdict disciplines — no verdict or an unknown one; a ① that names no existing entry or quotes ledger wording that is not in the ledger verbatim (CJK quotation marks included); a ② that names neither an existing entry ID nor a declared book; a ③ reasoned from "the ledger does not say so"; a ②/③/④ with no reason. Exit 0 / 1, 2 when a file cannot be read. It replaces the one-off script both adoptions wrote on the spot. (`cmd_verdicts.py`)
+- **`impact` ends with the entries involved**: every entry that anchors the symbol, each with the anchor it goes through. The IDs were already there, one per sibling line; a Gate 1 premise list built from those lines missed an entry that anchored the same function. (`cmd_impact.py`)
+
+### Changed
+
+- **`node_modules` is left out of every view** (`impact`'s search domain, the configured hot zone of `uncovered`, the multi-root uniqueness check). A JavaScript toolchain inside a `code_root` puts Python helper files there that belong to no rule. `impact`'s header now says so; the header of `uncovered` is unchanged byte for byte. (`repo.is_vendor_path`)
+- **A `hot_zone` item that adds no file** once `tests/` and `node_modules/` are excluded is reported with a `⚠` line instead of silently contributing nothing. (`cmd_uncovered.py`)
+
+### Docs
+
+- `reference/adopting-an-existing-project.md`: the verdict checklist points at `verdicts`; two new lessons — ask of every assertion which code paths it holds on, and review the whole ledger once more after signing, because `check` exiting 0 cannot say the wording was right.
+
 ## 1.2.0 — 2026-09-11
 
 A ledger can now be read as a catalog of approved definitions — what each entry says, who signed it, when, and whether the code still matches — and one entry's wording can be traced through every version it has had. Both are read-only views over the ledger and the lock that already existed; nothing about the format, the lock or the gates changed for projects that do not use them.

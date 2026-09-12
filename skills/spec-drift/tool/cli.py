@@ -16,6 +16,7 @@ import cmd_history
 import cmd_impact
 import cmd_inventory
 import cmd_uncovered
+import cmd_verdicts
 import cmd_write
 import ledger as L
 import repo
@@ -61,6 +62,15 @@ def build_parser() -> argparse.ArgumentParser:
         help="every wording and signature an entry has had, from git history (read-only)",
     )
     history_parser.add_argument("entry_id")
+    verdicts_parser = sub.add_parser(
+        "verdicts",
+        help="grade filled-in inventory verdict tables against the verdict disciplines (read-only)",
+    )
+    verdicts_parser.add_argument("files", nargs="+", help="inventory output with the verdict and reason columns filled in")
+    verdicts_parser.add_argument(
+        "--book", action="append", default=[],
+        help="a book the ledger places outside itself; a ② naming it passes (repeatable)",
+    )
     return parser
 
 
@@ -101,6 +111,8 @@ def _dispatch(args) -> int:
         return cmd_catalog.run(ctx, book=args.book, fmt=args.format)
     if args.command == "history":
         return cmd_history.run(ctx, args.entry_id)
+    if args.command == "verdicts":
+        return cmd_verdicts.run(ctx, args.files, args.book)
     if args.command in ("sync", "confirm", "relink"):
         return cmd_write.run(
             ctx, args.command, args.entry_id, args.by, args.note,

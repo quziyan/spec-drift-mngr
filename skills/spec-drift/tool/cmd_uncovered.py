@@ -72,11 +72,16 @@ def _configured_hot_zone_files(ctx) -> set[str]:
             if target.suffix != ".py":
                 print(f"⚠ hot_zone entry is not a .py file, skipped: {entry}")
                 continue
-            files.add(target.relative_to(root).as_posix())
+            candidates = [target.relative_to(root).as_posix()]
         else:
-            for path in target.rglob("*.py"):
-                files.add(path.relative_to(root).as_posix())
-    return {f for f in files if not repo.is_test_path(f)}
+            candidates = [path.relative_to(root).as_posix() for path in target.rglob("*.py")]
+        kept = [f for f in candidates if not repo.is_test_path(f) and not repo.is_vendor_path(f)]
+        if not kept:
+            # Say so: an entry that only holds test or vendor files silently adds nothing,
+            # and the reader cannot tell "configured but empty" from "configured and used".
+            print(f"⚠ hot_zone entry adds no file once tests/ and node_modules/ are excluded: {entry}")
+        files.update(kept)
+    return files
 
 
 def hot_zone(ctx) -> list[str]:

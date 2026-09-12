@@ -1,6 +1,6 @@
 {
   "name": "spec-drift-mngr",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "Drift control between a project's business-rule ledger and its code: a reconciliation gate before work starts and a wrap-up gate before a branch is finished.",
   "author": {
     "name": "quziyan"

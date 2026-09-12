@@ -40,7 +40,10 @@ def _all_py(ctx):
     found: list[tuple[str, Path, Path]] = []
     for root in ctx.code_roots:
         for path in root.rglob("*.py"):
-            found.append((path.relative_to(root).as_posix(), root, path))
+            relpath = path.relative_to(root).as_posix()
+            if repo.is_vendor_path(relpath):
+                continue  # third-party files under node_modules are nobody's rule
+            found.append((relpath, root, path))
     counts: dict[str, int] = {}
     for relpath, _root, _path in found:
         counts[relpath] = counts.get(relpath, 0) + 1
@@ -141,7 +144,7 @@ def run(ctx, target: str) -> int:
             # plainly that this kind of query does not apply to it.
             print("\n[reference sites] <module> is a pseudo-symbol; a text-matching reference query does not apply to it.")
         else:
-            print("\n[reference sites] text match on the symbol name; the search domain is every .py under code_root (tests/ included)")
+            print("\n[reference sites] text match on the symbol name; the search domain is every .py under code_root (tests/ included, node_modules/ excluded)")
             refs, skipped = _references(ctx, anchor)
             for ref in refs:
                 print(f"  - {ref}")
@@ -161,4 +164,19 @@ def run(ctx, target: str) -> int:
             print(f"  - {sib}")
         if not siblings_of.get(anchor):
             print("  (none)")
+
+    # The entries a change to these symbols involves, gathered in one place. The sibling
+    # lists above already carry the IDs, but spread across one line per sibling; a Gate 1
+    # premise list built from them missed an entry that anchored the same function.
+    involved = {}
+    for entry_id, entry in entries.items():
+        via = [a for a in anchors if a in entry.anchors]
+        if via:
+            involved[entry_id] = via
+    print("\n[entries involved] every ledger entry that anchors "
+          + ("one of these symbols" if target in entries else "this symbol"))
+    for entry_id in sorted(involved):
+        print(f"  - {entry_id} (via {', '.join(involved[entry_id])})")
+    if not involved:
+        print("  (none — no entry anchors it)")
     return 0

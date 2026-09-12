@@ -154,3 +154,31 @@ class TestOriginLabelingOnlyWhenConfigured(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestHotZoneEntriesThatAddNothing(unittest.TestCase):
+    def _run(self, fx) -> str:
+        buf = io.StringIO()
+        with redirect_stdout(buf):
+            cmd_uncovered.run(fx.ctx)
+        return buf.getvalue()
+
+    def test_directory_holding_only_tests_is_reported(self):
+        with tempfile.TemporaryDirectory() as d:
+            tmp = Path(d)
+            fx = build_with_hot_zone(tmp, ["web"])
+            (tmp / "backend" / "web" / "tests").mkdir(parents=True)
+            (tmp / "backend" / "web" / "tests" / "test_w.py").write_text("def test_w():\n    pass\n", encoding="utf-8")
+            self.assertIn("adds no file once tests/ and node_modules/ are excluded: web", self._run(fx))
+
+    def test_node_modules_files_are_excluded_but_real_files_kept(self):
+        with tempfile.TemporaryDirectory() as d:
+            tmp = Path(d)
+            fx = build_with_hot_zone(tmp, ["js"])
+            (tmp / "backend" / "js" / "node_modules" / "x").mkdir(parents=True)
+            (tmp / "backend" / "js" / "node_modules" / "x" / "h.py").write_text("def h():\n    return 0\n", encoding="utf-8")
+            (tmp / "backend" / "js" / "real.py").write_text("def r():\n    return 0\n", encoding="utf-8")
+            out = self._run(fx)
+            self.assertIn("js/real.py", out)
+            self.assertNotIn("node_modules/x", out)
+            self.assertNotIn("adds no file", out)

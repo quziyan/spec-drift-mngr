@@ -43,11 +43,15 @@ After the initial configuration you must first do one pass of **building the led
 - **Send each batch to review the moment it is filled in.** Saving them up so they are reviewed together lets the errors cover for one another: in one measured batch 142 items had been self-judged "① already asserted", and only 80 survived review — **more than sixty "the ledger does not say this" had been judged by their own author as "the ledger covers this"**.
 - **Somebody has to own the "knowingly not anchored" list.** This time 179 symbols were known to carry criteria and, after weighing it up, still left unanchored; the price (change them and `check` stays quiet) was written into the verdict table at the time, so nobody can later pretend not to have known.
 
-**The three mistakes that verdicts most often make, written here as a checklist:**
+**The three mistakes that verdicts most often make, written here as a checklist** (`verdicts <file>…` checks the mechanical half of each — a quote not in the ledger, an entry ID that does not exist, a ③ reasoned from silence; whether a quote covers every decision the line makes stays a judgement):
 
 1. When judging "already asserted by entry X", **the ledger wording you quote must be findable verbatim in the ledger file**; if it cannot be found, you made it up. **And it must cover every decision the item makes**: an item that decides two things (a threshold and a fallback) is ① only if the entry asserts both — in the measured reviews, 10–20% of ① verdicts had a genuine quote that covered only half of what the line decides.
 2. When judging "belongs to another book", **you must name an entry ID that really exists**. Naming only a domain and no ID usually means that entry does not exist at all.
 3. When judging "no business meaning" (at either level), **the reason must not be "the ledger does not say so"** — "the ledger does not say so" is the definition of "an entry waiting to be written", and reasoning from it to "no business meaning" lets that one sentence dismiss every gap there is.
+
+**When drafting, ask of every assertion: on which code paths is this true?** The error reviews found most often, long after the verdicts were clean, was an assertion true on one path and written as if it held on all of them: a date normalised on one of two write paths, a value injected only after a filter the text never mentions, a configured default that one caller never reads, a count taken from one of two source tables. Name the path, or the condition, in the sentence itself.
+
+**After signing, review the whole ledger once more.** `check` exiting 0 says the signed wording and the anchored code have not moved since signing; it cannot say the wording was right. On one adoption, two full cross-family review rounds after signing found 3 and then 5 wordings that did not match the code — one of them introduced by the last edit before signing — and the two reviewers' findings did not overlap in either round, so one reviewer is not enough. Stop the rounds once they find nothing but conditions left unstated, and let Gate 2 pick those up as the code is touched.
 
 ## Initial configuration (the same for both kinds of project)
 
