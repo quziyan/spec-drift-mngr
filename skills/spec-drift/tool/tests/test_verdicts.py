@@ -181,3 +181,49 @@ class TestVerdictsAfterReview(unittest.TestCase):
                     self.assertEqual(cmd_verdicts.run(fx.ctx, [str(path)]), 2)
             finally:
                 os.chmod(path, 0o600)
+
+
+VALID = "| 1 | ② return | 2 | `return 1` | ① R-T-001 | |\n"
+EMPTY = "| 1 | ② return | 2 | `return 1` |  |  |\n"
+
+
+class TestVerdictsSecondReview(unittest.TestCase):
+    def test_tilde_fence_is_skipped_too(self):
+        code, out = grade_text("~~~markdown\n" + HEAD + VALID + "~~~\n")
+        self.assertEqual(code, 1)
+        self.assertIn("[no table]", out)
+
+    def test_fence_closes_only_on_its_own_marker(self):
+        code, out = grade_text(HEAD + VALID + "\n````markdown\n```\n````\n\n" + HEAD + EMPTY)
+        self.assertEqual(code, 1)
+        self.assertIn("[no verdict]", out)
+
+    def test_separator_without_trailing_pipe_still_opens_the_table(self):
+        second = "| # | Category | Line | Source | Verdict | Reason |\n|---|---|---|---|---|---\n"
+        code, out = grade_text(HEAD + VALID + "\n" + second + EMPTY)
+        self.assertEqual(code, 1)
+        self.assertIn("[no verdict]", out)
+
+    def test_bad_separator_under_the_header_is_reported(self):
+        code, out = grade_text("| # | Category | Line | Source | Verdict | Reason |\n|---|\n" + VALID)
+        self.assertEqual(code, 1)
+        self.assertIn("[malformed table]", out)
+
+    def test_row_not_starting_with_a_pipe_is_reported(self):
+        code, out = grade_text(HEAD + VALID + "2 | ② return | 3 | `x` |  |  |\n")
+        self.assertEqual(code, 1)
+        self.assertIn("[malformed row]", out)
+
+    def test_double_backtick_code_span_is_not_a_quote(self):
+        self.assertEqual(grade("① R-T-001", '``raise ValueError("bad input")``')[0], 0)
+
+    def test_code_spans_do_not_pair_across_cells(self):
+        self.assertIn("[① quote not in ledger]", grade("① R-T-001 `", "“fake” `")[1])
+
+    def test_cjk_text_may_touch_the_entry_id(self):
+        self.assertEqual(grade("① \u6761\u76eeR-T-001", "")[0], 0)
+        self.assertEqual(grade("② belongs to another book, no entry this round", "\u7531R-T-001\u89c4\u5b9a")[0], 0)
+        self.assertIn("[① no entry]", grade("① XR-T-001", "")[1])
+
+    def test_quote_is_compared_with_whitespace_collapsed(self):
+        self.assertEqual(grade("① R-T-001", "“f  always returns 1.”")[0], 0)

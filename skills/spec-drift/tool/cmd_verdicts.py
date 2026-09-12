@@ -5,9 +5,10 @@ mechanical half, and on two real adoptions that half was checked by a script wri
 the spot; this command is that script, made general:
 
 1. ① "asserted by entry X" must name an entry that exists, matched as a whole ID (so
-   `R-T-0011` is not `R-T-001`), and every wording it quotes — in straight or curly double
-   quotes or CJK corner brackets, outside backtick code spans — must be findable verbatim
-   in the ledger (whitespace-normalised). Whether the quote also covers every decision the
+   `R-T-0011` is not `R-T-001`, while CJK text may touch the ID), and every wording it
+   quotes — in straight or curly double quotes or CJK corner brackets, outside code spans,
+   read cell by cell — must be findable verbatim in the ledger once runs of whitespace are
+   collapsed. Whether the quote also covers every decision the
    line makes is a judgement, not checked here.
 2. ② "belongs to another book" must name an existing entry ID, or a book the ledger places
    outside itself (declared with `--book`).
@@ -15,9 +16,10 @@ the spot; this command is that script, made general:
    phrase screen, not a reading of the reason's logic.
 
 It also refuses a row with no verdict, a verdict that is none of the four, a ②/③/④ with
-no reason (④'s reason is the draft assertion), a row without exactly six cells, and a file
-with no verdict table. Only rows under the `inventory` header row are graded; the totals
-table, prose and fenced code blocks are skipped. Read-only; exit 0 when every row passes,
+no reason (④'s reason is the draft assertion), a row without exactly six cells, a header
+not followed by a six-column separator, and a file with no verdict table. Only rows under
+the `inventory` header row are graded; the totals table, prose and fenced code blocks
+(backtick or tilde, closed only by the same marker at least as long) are skipped. Read-only; exit 0 when every row passes,
 1 when any fails, 2 when a file cannot be read.
 """
 from __future__ import annotations
@@ -31,13 +33,14 @@ from cmd_inventory import VERDICT_KINDS
 
 HEADER = ["#", "Category", "Line", "Source", "Verdict", "Reason"]
 SYMBOL_HEADING = re.compile(r"^## `([^`]+)`")
-SEPARATOR = re.compile(r"^\|(\s*:?-+:?\s*\|)+$")
+SEPARATOR_CELL = re.compile(r"^:?-+:?$")
+FENCE_OPEN = re.compile(r"^ {0,3}(`{3,}|~{3,})")
+BACKTICKS = re.compile(r"`+")
 CIRCLED = "①②③④"
 KIND_ORDER = ("asserted by entry", "belongs to another book", "no business meaning", "gap")
 KIND = re.compile(r"^(" + "|".join(KIND_ORDER) + r")\b", re.I)
 # Straight and curly double quotes, and the two CJK corner-bracket pairs.
 QUOTE = re.compile('"([^"]+)"|“([^”]+)”|\u300c([^\u300d]+)\u300d|\u300e([^\u300f]+)\u300f')
-CODE_SPAN = re.compile(r"`[^`]*`")
 LEDGER_SAYS_NOTHING = re.compile(
     r"ledger\s+(?:does\s*n[o']?t|doesn't|never)\s+(?:say|mention|cover|assert)"
     r"|not\s+(?:in|covered\s+by)\s+the\s+ledger"
@@ -70,19 +73,45 @@ def _cells(line: str) -> list[str]:
     return [c.strip().replace("\x00", "|") for c in body.split("|")]
 
 
-def _rows(text: str):
-    """Yield (symbol, cells) for every row of every verdict table; skip other tables, prose and fenced code."""
-    symbol, in_fence, state = "?", False, None  # state: None, "header" (separator next), "rows"
+def _strip_code_spans(text: str) -> str:
+    """Drop code spans from one cell: a run of n backticks closes at the next run of exactly n; an unmatched run stays literal."""
+    runs = [(m.start(), m.end()) for m in BACKTICKS.finditer(text)]
+    out, pos, j = [], 0, 0
+    while j < len(runs):
+        start, end = runs[j]
+        close = next((k for k in range(j + 1, len(runs)) if runs[k][1] - runs[k][0] == end - start), None)
+        if close is None:
+            j += 1
+            continue
+        out.append(text[pos:start] + " ")
+        pos, j = runs[close][1], close + 1
+    return "".join(out) + text[pos:]
+
+
+def _scan(text: str):
+    """Return (rows, problems): (symbol, cells) for every row of every verdict table, and the table-level problems.
+
+    Other tables, prose and fenced code are skipped. Nothing under a recognised header is
+    dropped silently: a bad separator or a row that does not start with a pipe is reported.
+    """
+    rows, problems = [], []
+    symbol, fence, state = "?", None, None  # fence: (marker char, length); state: None, "header", "rows", "other"
     for line in text.splitlines():
         s = line.strip()
-        if s.startswith("```"):
-            in_fence, state = not in_fence, None
+        if fence:
+            if s and set(s) == {fence[0]} and len(s) >= fence[1]:
+                fence = None
             continue
-        if in_fence:
+        opened = FENCE_OPEN.match(line)
+        if opened:
+            fence, state = (opened.group(1)[0], len(opened.group(1))), None
             continue
         heading = SYMBOL_HEADING.match(line)
         if heading:
             symbol, state = heading.group(1), None
+            continue
+        if state == "rows" and s and not s.startswith("|") and "|" in s:
+            problems.append(f"[malformed row] {symbol}: a table row must start with '|': {s[:70]!r}")
             continue
         if not s.startswith("|"):
             state = None
@@ -91,17 +120,21 @@ def _rows(text: str):
             state = "header" if _cells(s) == HEADER else "other"
             continue
         if state == "header":
-            state = "rows" if SEPARATOR.match(s) else "other"
+            separator = _cells(s)
+            if not (len(separator) == len(HEADER) and all(SEPARATOR_CELL.match(c) for c in separator)):
+                problems.append(f"[malformed table] {symbol}: the line under the header is not a six-column separator: {s[:70]!r}")
+            state = "rows"
             continue
         if state == "rows":
-            yield symbol, _cells(s)
+            rows.append((symbol, _cells(s)))
+    return rows, problems
 
 
 def _grade(text: str, id_patterns, ledger_norm: str, books: list[str]):
     counts = [0, 0, 0, 0]
-    problems: list[str] = []
+    table_rows, problems = _scan(text)
     rows = unfilled = 0
-    for symbol, cells in _rows(text):
+    for symbol, cells in table_rows:
         rows += 1
         if len(cells) != 6:
             problems.append(f"[malformed row] {symbol}: {len(cells)} cells, expected 6: {' | '.join(cells)[:70]!r}")
@@ -121,7 +154,7 @@ def _grade(text: str, id_patterns, ledger_norm: str, books: list[str]):
         if kind == 0:
             if not named:
                 problems.append(f"[① no entry] {where}: names no entry ID that exists in the ledger")
-            for groups in QUOTE.findall(CODE_SPAN.sub(" ", verdict + " " + reason)):
+            for groups in QUOTE.findall(_strip_code_spans(verdict) + " \n " + _strip_code_spans(reason)):
                 quote = _norm(next(g for g in groups if g))
                 if quote and quote not in ledger_norm:
                     problems.append(f"[① quote not in ledger] {where}: {quote[:80]!r}")
@@ -133,7 +166,7 @@ def _grade(text: str, id_patterns, ledger_norm: str, books: list[str]):
             problems.append(f"[② no book] {where}: names neither an existing entry ID nor a book given with --book")
         if kind == 2 and LEDGER_SAYS_NOTHING.search(reason):
             problems.append(f"[③ from silence] {where}: reasons from \"the ledger does not say so\"")
-    if not rows:
+    if not rows and not problems:
         problems.append("[no table] no row under the inventory header row (# | Category | Line | Source | Verdict | Reason)")
     return rows, unfilled, counts, problems
 
@@ -141,7 +174,8 @@ def _grade(text: str, id_patterns, ledger_norm: str, books: list[str]):
 def run(ctx, files: list[str], books: list[str] | None = None) -> int:
     text = ctx.ledger_path.read_text(encoding="utf-8")
     ids = L.parse_ledger(text, ctx.labels)
-    id_patterns = [(i, re.compile(r"(?<![\w-])" + re.escape(i) + r"(?![\w-])")) for i in ids]
+    # ASCII boundaries: IDs are ASCII (ledger.py), and CJK text may touch them directly.
+    id_patterns = [(i, re.compile(r"(?<![A-Za-z0-9_-])" + re.escape(i) + r"(?![A-Za-z0-9_-])")) for i in ids]
     ledger_norm = _norm(text)
     books = books or []
     failed = False
