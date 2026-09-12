@@ -61,7 +61,10 @@ def is_vendor_path(relpath: str) -> bool:
     `node_modules` (a debugger script, a build helper). They belong to no rule of the
     project, yet they sat inside the scan domain of `impact` and could reach `uncovered`
     through a configured hot-zone directory. Unlike `tests`, which `impact` and `changed`
-    keep on purpose, vendor files are left out of every view.
+    keep on purpose, vendor files are left out of `impact`'s search domain, the configured
+    hot zone of `uncovered` and the multi-root uniqueness check. An anchor the ledger itself
+    places under `node_modules` is still honoured as written, which keeps the views derived
+    from anchors byte-identical.
     """
     parts = relpath.replace("\\", "/").split("/")
     return any(p in VENDOR_DIR_NAMES for p in parts[:-1])

@@ -164,3 +164,50 @@ class TestImpactInvolvedAndVendor(unittest.TestCase):
             out = run(fx, "pkg/mod.py::f")
             self.assertNotIn("node_modules/tool/helper.py", out)
             self.assertIn("pkg/mod.py::caller", out)
+
+
+MD_TWO = """# Pilot ledger
+
+### R-T-001 First rule
+
+**Current rule**
+f always returns 1.
+
+**Boundary**
+Nothing else.
+
+**Anchors**
+- `pkg/mod.py::f`
+
+**Last confirmed**
+2026-09-04
+
+### R-T-002 Second rule
+
+**Current rule**
+caller returns what f returns.
+
+**Boundary**
+Nothing else.
+
+**Anchors**
+- `pkg/mod.py::f`
+- `pkg/mod.py::caller`
+
+**Last confirmed**
+2026-09-04
+"""
+
+
+class TestImpactInvolvedAfterReview(unittest.TestCase):
+    def test_every_entry_sharing_the_anchor_is_listed(self):
+        with tempfile.TemporaryDirectory() as d:
+            out = run(Fixture(Path(d), md=MD_TWO, code=CODE), "pkg/mod.py::f")
+            involved = out.split("[entries involved]")[1]
+            self.assertIn("R-T-001 (via pkg/mod.py::f)", involved)
+            self.assertIn("R-T-002 (via pkg/mod.py::f)", involved)
+
+    def test_backslash_query_matches_a_forward_slash_anchor(self):
+        with tempfile.TemporaryDirectory() as d:
+            out = run(Fixture(Path(d), md=MD_TWO, code=CODE), "pkg\\mod.py::f")
+            self.assertIn("R-T-001 (via", out.split("[entries involved]")[1])

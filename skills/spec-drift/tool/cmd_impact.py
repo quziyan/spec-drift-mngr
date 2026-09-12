@@ -168,9 +168,13 @@ def run(ctx, target: str) -> int:
     # The entries a change to these symbols involves, gathered in one place. The sibling
     # lists above already carry the IDs, but spread across one line per sibling; a Gate 1
     # premise list built from them missed an entry that anchored the same function.
+    def _key(anchor: str) -> str:
+        return anchor.replace("\\", "/")
+
     involved = {}
     for entry_id, entry in entries.items():
-        via = [a for a in anchors if a in entry.anchors]
+        held = {_key(x) for x in entry.anchors}
+        via = [a for a in anchors if _key(a) in held]
         if via:
             involved[entry_id] = via
     print("\n[entries involved] every ledger entry that anchors "

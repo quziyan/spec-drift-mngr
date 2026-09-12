@@ -103,3 +103,81 @@ class TestVerdicts(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def grade_text(text: str, books=None) -> tuple[int, str]:
+    with tempfile.TemporaryDirectory() as d:
+        fx = Fixture(Path(d), md=MD, code=CODE)
+        path = Path(d) / "verdicts.md"
+        path.write_text(text, encoding="utf-8")
+        buf = io.StringIO()
+        with redirect_stdout(buf):
+            code = cmd_verdicts.run(fx.ctx, [str(path)], books)
+        return code, buf.getvalue()
+
+
+class TestVerdictsAfterReview(unittest.TestCase):
+    def test_whole_inventory_output_filled_correctly_passes(self):
+        import cmd_inventory
+        with tempfile.TemporaryDirectory() as d:
+            fx = Fixture(Path(d), md=MD, code=CODE)
+            buf = io.StringIO()
+            with redirect_stdout(buf):
+                cmd_inventory.run(fx.ctx, symbol=None, file=None)
+            filled = "\n".join(
+                line[: -len("| | |")] + "| ① R-T-001 | |" if line.endswith("| | |") else line
+                for line in buf.getvalue().splitlines()
+            )
+            filled += "\n\n```\n| 9 | ① branch | 1 | `x` | maybe | example in a fence |\n```\n"
+            path = Path(d) / "v.md"
+            path.write_text(filled, encoding="utf-8")
+            out = io.StringIO()
+            with redirect_stdout(out):
+                self.assertEqual(cmd_verdicts.run(fx.ctx, [str(path)]), 0, out.getvalue())
+
+    def test_entry_id_is_matched_whole(self):
+        code, out = grade("① R-T-0011", "")
+        self.assertEqual(code, 1)
+        self.assertIn("[① no entry]", out)
+
+    def test_short_fabricated_quote_fails(self):
+        self.assertIn("[① quote not in ledger]", grade("① R-T-001", "“fake”")[1])
+
+    def test_quotes_inside_code_spans_are_not_ledger_quotes(self):
+        self.assertEqual(grade("① R-T-001", 'see `raise ValueError("bad input")`')[0], 0)
+
+    def test_quote_in_the_verdict_cell_is_checked(self):
+        self.assertIn("[① quote not in ledger]", grade("① R-T-001 “f returns 2”", "")[1])
+
+    def test_verdict_prefix_needs_a_word_boundary(self):
+        self.assertIn("[unknown verdict]", grade("gapless", "x")[1])
+
+    def test_row_with_wrong_cell_count_is_reported(self):
+        code, out = grade_text(HEAD + "| 1 | ② return | 2 | ① R-T-001 |\n")
+        self.assertEqual(code, 1)
+        self.assertIn("[malformed row]", out)
+
+    def test_compact_empty_cells_are_kept(self):
+        code, out = grade_text(HEAD + "| 1 | ② return | 2 | `return 1` |||\n")
+        self.assertIn("[no verdict]", out)
+        self.assertNotIn("[malformed row]", out)
+
+    def test_file_without_a_verdict_table_fails(self):
+        code, out = grade_text("just prose\n\n| a | b |\n|---|---|\n| 1 | 2 |\n")
+        self.assertEqual(code, 1)
+        self.assertIn("[no table]", out)
+
+    def test_unreadable_file_exits_2(self):
+        import os
+        if hasattr(os, "geteuid") and os.geteuid() == 0:
+            self.skipTest("root can read any file")
+        with tempfile.TemporaryDirectory() as d:
+            fx = Fixture(Path(d), md=MD, code=CODE)
+            path = Path(d) / "locked.md"
+            path.write_text(HEAD, encoding="utf-8")
+            os.chmod(path, 0)
+            try:
+                with redirect_stdout(io.StringIO()):
+                    self.assertEqual(cmd_verdicts.run(fx.ctx, [str(path)]), 2)
+            finally:
+                os.chmod(path, 0o600)
